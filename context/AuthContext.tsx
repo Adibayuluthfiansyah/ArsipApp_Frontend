@@ -2,18 +2,18 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User } from "@/types";
-import { authAPI } from "@/lib/api";
+import { authAPI, getErrorMessage } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { getErrorMessage } from "@/lib/api";
+import { nanoid } from "nanoid";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   register: (data: {
     name: string;
-    email: string;
+    username: string;
     password: string;
     password_confirmation: string;
   }) => Promise<void>;
@@ -36,9 +36,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const token = localStorage.getItem("token");
       if (token) {
-        // Get user from backend
+        // API AUTH /auth/me
         const userData = await authAPI.me();
-        setUser(userData as User);
+        setUser(userData);
       }
     } catch (error) {
       console.error("Auth check failed:", error);
@@ -49,62 +49,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (username: string, password: string) => {
     try {
-      // Menggunakan DUMMY LOGIN sementara
-      console.log("LOGIN DUMMY DIMULAI DENGAN:", { email, password });
-
+      // LOGIC DUMMY
+      console.log("LOGIN DUMMY DIMULAI DENGAN:", { username, password });
       const dummyUser: User = {
-        id: 1,
+        id: nanoid(), //
         name: "Admin Dummy",
-        email: email,
+        username: username,
         role: "admin",
-        is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
 
-      // Response API dummy
       const response = {
         token: "ini-adalah-token-dummy-12345",
         user: dummyUser,
       };
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
+      // END LOGIC DUMMY
+
+      // REAL API
+      // const response = await authAPI.login(username, password);
 
       localStorage.setItem("token", response.token);
       localStorage.setItem("user", JSON.stringify(response.user));
-      setUser(response.user as User);
+      setUser(response.user);
 
       router.push("/dashboard");
     } catch (error: unknown) {
       console.error("Login error:", error);
-      throw new Error(error instanceof Error ? error.message : "Login gagal");
+      const errorMessage = getErrorMessage(error);
+      throw new Error(errorMessage);
     }
   };
 
-  // Mengubah fungsi register agar memanggil API sesungguhnya
   const register = async (data: {
     name: string;
-    email: string;
+    username: string;
     password: string;
     password_confirmation: string;
   }) => {
     try {
-      // PANGGIL API REGISTRASI SESUNGGUHNYA
+      // PANGGIL API REGISTRASI
       const response = await authAPI.register(data);
 
       localStorage.setItem("token", response.token);
       localStorage.setItem("user", JSON.stringify(response.user));
-      setUser(response.user as User);
+      setUser(response.user);
 
       toast.success("Registrasi Berhasil!", {
-        description: "Anda telah didaftarkan dan login otomatis.",
+        description: "Akun berhasil didaftarkan dan login otomatis.",
       });
       router.push("/dashboard");
     } catch (error: unknown) {
       console.error("Registration error:", error);
-      // Menggunakan getErrorMessage dari lib/api.ts untuk menangani error dari Golang backend
       const errorMessage = getErrorMessage(error);
       throw new Error(errorMessage);
     }

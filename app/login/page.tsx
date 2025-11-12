@@ -1,4 +1,3 @@
-// app/login/page.tsx
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -16,9 +15,10 @@ import Image from "next/image";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import Link from "next/link";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,10 +30,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(username, password);
       toast.success("Login Berhasil");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Login Gagal");
+      toast.error("Login Gagal", {
+        description: err instanceof Error ? err.message : "Login Gagal",
+      });
     } finally {
       setLoading(false);
     }
@@ -62,13 +65,13 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="nama@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                placeholder="Masukkan username Anda"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
               />
             </div>
@@ -84,16 +87,15 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <div>
-              <h2 className="text-sm text-center text-muted-foreground">
-                Belum punya akun?{" "}
-                <a
-                  href="/register"
-                  className="text-accent-foreground font-medium hover:underline"
-                >
-                  Daftar di sini
-                </a>
-              </h2>
+
+            <div className="text-center text-sm text-muted-foreground">
+              Belum punya akun?{" "}
+              <Link
+                href="/register"
+                className="text-primary hover:underline font-medium"
+              >
+                Daftar di sini
+              </Link>
             </div>
 
             <Button

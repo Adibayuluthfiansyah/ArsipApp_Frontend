@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { categoryAPI } from "@/lib/api";
+import { categoryAPI, getErrorMessage } from "@/lib/api";
 import { Category } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,8 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, Edit, Trash2, FolderOpen, AlertCircle } from "lucide-react";
+import { toast } from "sonner"; // Import toast
+import { Spinner } from "@/components/ui/spinner"; // Import Spinner
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -58,10 +60,11 @@ export default function CategoriesPage() {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const response = (await categoryAPI.getAll()) as unknown as Category[];
-      setCategories(response);
+      const response = await categoryAPI.getAll();
+      setCategories(response.data);
     } catch (error) {
       console.error("Error fetching categories:", error);
+      toast.error("Gagal memuat kategori.");
     } finally {
       setLoading(false);
     }
@@ -70,6 +73,7 @@ export default function CategoriesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
     try {
       const dataToSubmit = {
@@ -80,30 +84,20 @@ export default function CategoriesPage() {
 
       if (editingCategory) {
         await categoryAPI.update(editingCategory.id, dataToSubmit);
+        toast.success("Kategori berhasil diperbarui.");
       } else {
         await categoryAPI.create(dataToSubmit);
+        toast.success("Kategori berhasil ditambahkan.");
       }
       closeModal();
       fetchCategories();
     } catch (error: unknown) {
       console.error("Error saving category:", error);
-
-      if (error && typeof error === "object" && "response" in error) {
-        const axiosError = error as {
-          response?: {
-            data?: {
-              message?: string;
-            };
-          };
-        };
-        setError(
-          axiosError.response?.data?.message || "Gagal menyimpan kategori"
-        );
-      } else if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("Gagal menyimpan kategori");
-      }
+      const errorMessage = getErrorMessage(error);
+      setError(errorMessage);
+      toast.error("Gagal menyimpan kategori", { description: errorMessage });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -114,6 +108,7 @@ export default function CategoriesPage() {
       description: category.description || "",
       parent_id: category.parent_id ? String(category.parent_id) : "",
     });
+    setError("");
     setIsModalOpen(true);
   };
 
@@ -123,9 +118,10 @@ export default function CategoriesPage() {
     try {
       await categoryAPI.delete(id);
       fetchCategories();
+      toast.success("Kategori berhasil dihapus.");
     } catch (error) {
       console.error("Error deleting category:", error);
-      alert("Gagal menghapus kategori");
+      toast.error("Gagal menghapus kategori.");
     }
   };
 
@@ -229,11 +225,23 @@ export default function CategoriesPage() {
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={closeModal}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeModal}
+                  disabled={loading}
+                >
                   Batal
                 </Button>
-                <Button type="submit">
-                  {editingCategory ? "Update" : "Tambah"}
+                <Button type="submit" disabled={loading}>
+                  {loading ? <Spinner className="mr-2 h-4 w-4" /> : null}
+                  {loading
+                    ? editingCategory
+                      ? "Memperbarui..."
+                      : "Menambahkan..."
+                    : editingCategory
+                    ? "Update"
+                    : "Tambah"}
                 </Button>
               </div>
             </form>
@@ -251,7 +259,7 @@ export default function CategoriesPage() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <Spinner className="h-8 w-8" />
             </div>
           ) : categories.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">

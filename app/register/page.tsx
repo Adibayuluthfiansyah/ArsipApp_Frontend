@@ -15,15 +15,13 @@ import Image from "next/image";
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UserPlus, ArrowLeft } from "lucide-react";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
+    username: "",
     password: "",
     password_confirmation: "",
   });
@@ -48,9 +46,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Panggil fungsi register dari AuthContext
       await register(formData);
-      // Redireksi ke dashboard terjadi di AuthContext saat sukses
     } catch (err: unknown) {
       console.error("Registration error:", err);
       const errorMessage =
@@ -67,7 +63,6 @@ export default function RegisterPage() {
       <Card className="w-full max-w-lg shadow-xl">
         <CardHeader className="space-y-3 text-center">
           <div className="mx-auto rounded-2xl flex items-center justify-center shadow-lg">
-            {/* Menggunakan gambar logo yang sudah ada */}
             <Image
               src="/logodinsos.png"
               alt="Logo"
@@ -83,7 +78,11 @@ export default function RegisterPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
-            {error && toast.error("Registrasi Gagal", { description: error })}
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="name">Nama Lengkap</Label>
@@ -98,52 +97,52 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="nama@example.com"
-                value={formData.email}
+                id="username"
+                type="text"
+                placeholder="Masukkan username unik"
+                value={formData.username}
                 onChange={handleChange}
                 required
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password_confirmation">
-                  Konfirmasi Password
-                </Label>
-                <Input
-                  id="password_confirmation"
-                  type="password"
-                  placeholder="••••••••"
-                  value={formData.password_confirmation}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                required
+              />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <div className="space-y-2">
+              <Label htmlFor="password_confirmation">Konfirmasi Password</Label>
+              <Input
+                id="password_confirmation"
+                type="password"
+                placeholder="••••••••"
+                value={formData.password_confirmation}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full cursor-pointer "
+              disabled={loading}
+            >
               <UserPlus className="mr-2 h-4 w-4" />
               {loading ? "Mendaftarkan..." : "Daftar Sekarang"}
               {loading && <Spinner className="ml-2" />}
             </Button>
 
-            <div className="text-center text-sm text-muted-foreground ">
+            <div className="text-center text-sm text-muted-foreground">
               Sudah punya akun?{" "}
               <Link
                 href="/login"

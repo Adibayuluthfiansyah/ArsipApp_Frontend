@@ -1,28 +1,28 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
-import { Document, ActivityLog } from '@/types';
+import { Document, ActivityLog, User, Category } from '@/types'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
-// Response Type Backend
 interface ApiResponse<T> {
     status: 'success' | 'error';
     message?: string;
-    data?: T;
+    data?: T; 
+    users?: T; 
+    error?: string; 
     errors?: Record<string, string[]>;
 }
-
 interface PaginatedApiResponse<T> {
     status: 'success' | 'error';
     message?: string;
     data: T[];
-    pagination: {
-        current_page: number;
-        last_page: number;
-        per_page: number;
-        total: number;
-        from: number;
-        to: number;
-    };
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+}
+interface AuthResponseData {
+    token: string;
+    user: User;
 }
 
 export const api = axios.create({
@@ -59,12 +59,13 @@ api.interceptors.response.use(
     }
 );
 
-// Helper function to extract data from Backend response
+// Helper function  extract data from Backend response
 function extractData<T>(response: AxiosResponse<ApiResponse<T>>): T {
     if (response.data.status === 'error') {
     throw new Error(response.data.message || 'An error occurred');
     }
-    return response.data.data as T;
+    // Handle respons backend
+    return (response.data.data || response.data.users || response.data) as T;
 }
 
 function extractPaginatedData<T>(
@@ -77,22 +78,26 @@ function extractPaginatedData<T>(
 }
 
 export const authAPI = {
-    login: async (email: string, password: string) => {
-        const response = await api.post<ApiResponse<{ token: string; user: unknown }>>('/auth/login', {
-        email,
-        password,
+    login: async (username: string, password: string) => {
+        const response = await api.post<ApiResponse<AuthResponseData>>('/auth/login', {
+            username, 
+            password,
         });
         return extractData(response);
     },
 
     register: async (data: {
         name: string;
-        email: string;
+        username: string; 
         password: string;
         password_confirmation: string;
     }) => {
-        // Ini adalah pemanggilan API sesungguhnya. Backend Golang Anda harus menyediakan endpoint ini.
-        const response = await api.post<ApiResponse<{ token: string; user: unknown }>>('/auth/register', data);
+        const dataToSend = {
+            name: data.name,
+            username: data.username,
+            password: data.password,
+        };
+        const response = await api.post<ApiResponse<AuthResponseData>>('/auth/register', dataToSend);
         return extractData(response);
     },
 
@@ -102,25 +107,25 @@ export const authAPI = {
     },
 
     me: async () => {
-        const response = await api.get<ApiResponse<unknown>>('/auth/me');
+        const response = await api.get<ApiResponse<User>>('/auth/me'); 
         return extractData(response);
     },
 };
 
-// Category API
+// Category API 
 export const categoryAPI = {
     getAll: async () => {
-        const response = await api.get<ApiResponse<unknown[]>>('/categories');
-        return extractData(response);
+        const response = await api.get<PaginatedApiResponse<Category>>('/categories');
+        return extractPaginatedData(response);
     },
 
     create: async (data: { name: string; description?: string; parent_id?: number }) => {
-        const response = await api.post<ApiResponse<unknown>>('/categories', data);
+        const response = await api.post<ApiResponse<Category>>('/categories', data);
         return extractData(response);
     },
 
     update: async (id: number, data: { name: string; description?: string; parent_id?: number }) => {
-        const response = await api.put<ApiResponse<unknown>>(`/categories/${id}`, data);
+        const response = await api.put<ApiResponse<Category>>(`/categories/${id}`, data);
         return extractData(response);
     },
 
@@ -130,7 +135,7 @@ export const categoryAPI = {
     },
 };
 
-// Document API
+// Document API 
 export const documentAPI = {
     getAll: async (params?: {
         page?: number;
@@ -144,7 +149,7 @@ export const documentAPI = {
         return extractPaginatedData(response);
     },
 
-    getById: async (id: number) => {
+    getById: async (id: string) => { 
         const response = await api.get<ApiResponse<Document>>(`/documents/${id}`);
         return extractData(response);
     },
@@ -157,7 +162,7 @@ export const documentAPI = {
     },
 
     update: async (
-        id: number,
+        id: string, 
         data: {
         title: string;
         description?: string;
@@ -170,12 +175,12 @@ export const documentAPI = {
         return extractData(response);
     },
 
-    delete: async (id: number) => {
+    delete: async (id: string) => { 
         const response = await api.delete<ApiResponse<null>>(`/documents/${id}`);
         return response.data;
     },
 
-    download: async (id: number) => {
+    download: async (id: string) => { 
         return api.get(`/documents/${id}/download`, {
         responseType: 'blob',
         });
@@ -187,8 +192,8 @@ export const activityLogAPI = {
     getAll: async (params?: {
         page?: number;
         per_page?: number;
-        user_id?: number;
-        document_id?: number;
+        user_id?: string; 
+        document_id?: string; 
         action?: string;
         start_date?: string;
         end_date?: string;
@@ -198,39 +203,51 @@ export const activityLogAPI = {
     },
 };
 
-// User API (Admin)
+// User API (Admin only)
 export const userAPI = {
     getAll: async () => {
-        const response = await api.get<ApiResponse<unknown>>('/users');
-        return extractData(response);
+        const response = await api.get<ApiResponse<User[]>>('/users'); 
+        return (response.data as unknown as { users: User[] }).users as User[];
     },
 
     create: async (data: {
         name: string;
-        email: string;
+        username: string; 
         password: string;
         role: 'admin' | 'staff';
-        is_active?: boolean;
     }) => {
-        const response = await api.post<ApiResponse<unknown>>('/users', data);
-        return extractData(response);
+        const dataToSend = {
+            name: data.name,
+            username: data.username,
+            password: data.password,
+            role: data.role,
+        };
+        const response = await api.post<ApiResponse<{ user: User }>>('/users', dataToSend);
+        // Perbaikan di sini:
+        if (response.data.data && 'user' in response.data.data) {
+            return response.data.data.user;
+        }
+        throw new Error('Invalid response format');
     },
 
     update: async (
-        id: number,
+        id: string, 
         data: {
         name: string;
-        email: string;
+        username: string; 
         password?: string;
         role: 'admin' | 'staff';
-        is_active: boolean;
         }
     ) => {
-        const response = await api.put<ApiResponse<unknown>>(`/users/${id}`, data);
-        return extractData(response);
+        const response = await api.put<ApiResponse<{ user: User }>>(`/users/${id}`, data);
+        // Perbaikan di sini:
+        if (response.data.data && 'user' in response.data.data) {
+            return response.data.data.user;
+        }
+        throw new Error('Invalid response format');
     },
 
-    delete: async (id: number) => {
+    delete: async (id: string) => { 
         const response = await api.delete<ApiResponse<null>>(`/users/${id}`);
         return response.data;
     },
@@ -239,13 +256,16 @@ export const userAPI = {
 // Handle error axios
 export function getErrorMessage(error: unknown): string {
     if (error instanceof AxiosError) {
-        // Cek struktur error dari backend Laravel/Lumen
-        if (error.response?.data?.errors) {
-            // Gabungkan pesan error validasi
-            const validationErrors = Object.values(error.response.data.errors).flat();
-            return validationErrors.join('; ') || 'Validasi Gagal';
+        if (error.response?.data?.error) {
+            return error.response.data.error;
         }
-        return error.response?.data?.message || error.message || 'Terjadi kesalahan';
+
+        // Cek pesan backend
+        if (error.response?.data?.message) {
+             return error.response.data.message;
+        }
+        
+        return error.message || 'Terjadi kesalahan';
     }
     if (error instanceof Error) {
         return error.message;

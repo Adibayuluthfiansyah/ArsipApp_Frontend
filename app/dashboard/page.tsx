@@ -37,7 +37,7 @@ export default function DashboardPage() {
 
       setStats((prev) => ({
         ...prev,
-        totalDocuments: docsResponse?.pagination?.total ?? 0,
+        totalDocuments: docsResponse?.total ?? 0,
         recentDocuments: docsResponse?.data ?? [],
         recentActivities: logsResponse?.data ?? [],
       }));

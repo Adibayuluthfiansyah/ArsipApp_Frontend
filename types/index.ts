@@ -1,9 +1,8 @@
 export interface User {
-id: number;
+id: string; 
 name: string;
-email: string;
-role: 'admin' | 'staff';
-is_active: boolean;
+username: string; 
+role: 'admin' | 'staff'; 
 created_at: string;
 updated_at: string;
 }
@@ -21,8 +20,8 @@ updated_at: string;
 }
 
 export interface Document {
-id: number;
-title: string;
+id: string; 
+title: string; 
 description?: string;
 file_name: string;
 file_path: string;
@@ -30,8 +29,8 @@ file_type: string;
 file_size: number;
 document_number: string;
 document_date: string;
-category_id: number;
-uploaded_by: number;
+category_id: number; 
+uploaded_by: string; 
 status: 'active' | 'archived' | 'deleted';
 metadata?: unknown;
 category?: Category;
@@ -42,8 +41,8 @@ updated_at: string;
 
 export interface ActivityLog {
 id: number;
-user_id: number;
-document_id?: number;
+user_id: string; 
+document_id?: string; 
 action: string;
 description?: string;
 ip_address?: string;
@@ -54,11 +53,13 @@ created_at: string;
 }
 
 export interface PaginatedResponse<T> {
-data: T[];
-current_page: number;
-last_page: number;
-per_page: number;
-total: number;
-from: number;
-to: number;
+ status?: 'success' | 'error';
+  message?: string;
+  data: T[];
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+  from?: number;
+  to?: number;
 }
