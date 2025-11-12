@@ -1,7 +1,9 @@
+import LoginPage from "./login/page";
+
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <h1>ARSIP APP</h1>
+    <div className="items-center justify-center">
+      <LoginPage />
     </div>
   );
 }
