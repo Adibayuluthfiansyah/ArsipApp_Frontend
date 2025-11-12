@@ -4,11 +4,19 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { User } from "@/types";
 import { authAPI } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/api";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (data: {
+    name: string;
+    email: string;
+    password: string;
+    password_confirmation: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   isAdmin: boolean;
 }
@@ -43,10 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      // Response dari backend: { token, user }
-      // const response = await authAPI.login(email, password);
-
-      // Dummy Login
+      // Menggunakan DUMMY LOGIN sementara
       console.log("LOGIN DUMMY DIMULAI DENGAN:", { email, password });
 
       const dummyUser: User = {
@@ -59,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updated_at: new Date().toISOString(),
       };
 
-      // 2.Response API dummy
+      // Response API dummy
       const response = {
         token: "ini-adalah-token-dummy-12345",
         user: dummyUser,
@@ -74,7 +79,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.push("/dashboard");
     } catch (error: unknown) {
       console.error("Login error:", error);
-      throw new Error(error instanceof Error ? error.message : "Login failed");
+      throw new Error(error instanceof Error ? error.message : "Login gagal");
+    }
+  };
+
+  // Mengubah fungsi register agar memanggil API sesungguhnya
+  const register = async (data: {
+    name: string;
+    email: string;
+    password: string;
+    password_confirmation: string;
+  }) => {
+    try {
+      // PANGGIL API REGISTRASI SESUNGGUHNYA
+      const response = await authAPI.register(data);
+
+      localStorage.setItem("token", response.token);
+      localStorage.setItem("user", JSON.stringify(response.user));
+      setUser(response.user as User);
+
+      toast.success("Registrasi Berhasil!", {
+        description: "Anda telah didaftarkan dan login otomatis.",
+      });
+      router.push("/dashboard");
+    } catch (error: unknown) {
+      console.error("Registration error:", error);
+      // Menggunakan getErrorMessage dari lib/api.ts untuk menangani error dari Golang backend
+      const errorMessage = getErrorMessage(error);
+      throw new Error(errorMessage);
     }
   };
 
@@ -94,7 +126,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdmin = user?.role === "admin";
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, register, logout, isAdmin }}
+    >
       {children}
     </AuthContext.Provider>
   );

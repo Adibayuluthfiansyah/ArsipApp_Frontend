@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Arsip Dinsos Kubu Raya",
+  title: "ARSIP DINSOS KUBU RAYA",
   description: "Arsip Digital Dinsos Kubu Raya",
 };
 
@@ -30,14 +30,14 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-        {children}
-          <Toaster 
-          position="top-right"
-          theme="dark"
-          richColors
-          closeButton
-          duration={3000}
-        />
+          {children}
+          <Toaster
+            position="top-right"
+            theme="dark"
+            richColors
+            closeButton
+            duration={3000}
+          />
         </AuthProvider>
       </body>
     </html>
