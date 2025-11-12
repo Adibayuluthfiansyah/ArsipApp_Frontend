@@ -1,5 +1,5 @@
-import axios, { AxiosResponse } from 'axios';
-import { User } from '@/types';
+import axios, { AxiosError, AxiosResponse } from 'axios';
+import { Document, ActivityLog } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
@@ -16,12 +16,12 @@ interface PaginatedApiResponse<T> {
     message?: string;
     data: T[];
     pagination: {
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    from: number;
-    to: number;
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+        from: number;
+        to: number;
     };
 }
 
@@ -129,17 +129,17 @@ getAll: async (params?: {
     start_date?: string;
     end_date?: string;
 }) => {
-    const response = await api.get<PaginatedApiResponse<unknown>>('/documents', { params });
+    const response = await api.get<PaginatedApiResponse<Document>>('/documents', { params });
     return extractPaginatedData(response);
 },
 
 getById: async (id: number) => {
-    const response = await api.get<ApiResponse<unknown>>(`/documents/${id}`);
+    const response = await api.get<ApiResponse<Document>>(`/documents/${id}`);
     return extractData(response);
 },
 
 create: async (formData: FormData) => {
-    const response = await api.post<ApiResponse<unknown>>('/documents', formData, {
+    const response = await api.post<ApiResponse<Document>>('/documents', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
     });
     return extractData(response);
@@ -155,7 +155,7 @@ update: async (
     status?: string;
     }
 ) => {
-    const response = await api.put<ApiResponse<unknown>>(`/documents/${id}`, data);
+    const response = await api.put<ApiResponse<Document>>(`/documents/${id}`, data);
     return extractData(response);
 },
 
@@ -182,7 +182,7 @@ getAll: async (params?: {
     start_date?: string;
     end_date?: string;
 }) => {
-    const response = await api.get<PaginatedApiResponse<unknown>>('/activity-logs', { params });
+    const response = await api.get<PaginatedApiResponse<ActivityLog>>('/activity-logs', { params });
     return extractPaginatedData(response);
 },
 };
@@ -224,3 +224,14 @@ delete: async (id: number) => {
     return response.data;
 },
 };
+
+// Handle error axios
+export function getErrorMessage(error: unknown): string {
+if (error instanceof AxiosError) {
+    return error.response?.data?.message || error.message || 'Terjadi kesalahan';
+}
+if (error instanceof Error) {
+    return error.message;
+}
+return 'Terjadi kesalahan yang tidak diketahui';
+}

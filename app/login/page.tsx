@@ -8,13 +8,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import Image from 'next/image';
 import { Spinner } from '@/components/ui/spinner';
-
+import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const { login } = useAuth();
 
     const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +24,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-        await login (email, password);
+    await login (email, password);
+    toast.success('Login Berhasil');
     } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Login Gagal');
     } finally {
