@@ -4,15 +4,16 @@ import { Document, ActivityLog, User, Category } from '@/types';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
 interface ApiResponse<T> {
-    status: 'success' | 'error';
+    status?: 'success' | 'error';
     message?: string;
     data?: T; 
     users?: T; 
     error?: string; 
     errors?: Record<string, string[]>;
 }
+
 interface PaginatedApiResponse<T> {
-    status: 'success' | 'error';
+    status?: 'success' | 'error';
     message?: string;
     data: T[];
     current_page: number;
@@ -20,6 +21,20 @@ interface PaginatedApiResponse<T> {
     per_page: number;
     total: number;
 }
+
+// Response khusus dari backend Golang untuk documents
+interface DocumentsApiResponse {
+    documents: Document[];
+}
+
+// Response untuk create document
+interface CreateDocumentResponse {
+    message: string;
+    file_id: string;
+    file_name: string;
+    document: Document;
+}
+
 interface AuthResponseData {
     token: string;
     user: User;
@@ -28,51 +43,50 @@ interface AuthResponseData {
 export const api = axios.create({
     baseURL: API_URL,
     headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
     },
 });
 
 // Add token to requests
 api.interceptors.request.use((config) => {
     if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-    }
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
     }
     return config;
 });
 
 // Handle responses and errors
 api.interceptors.response.use(
-(response) => response,
+    (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-        if (typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = '/login';
+            }
         }
-    }
-    return Promise.reject(error);
+        return Promise.reject(error);
     }
 );
 
-// Helper function  extract data from Backend response
+// Helper function extract data from Backend response
 function extractData<T>(response: AxiosResponse<ApiResponse<T>>): T {
     if (response.data.status === 'error') {
-    throw new Error(response.data.message || 'An error occurred');
+        throw new Error(response.data.message || 'An error occurred');
     }
-    // Handle respons backend
     return (response.data.data || response.data.users || response.data) as T;
 }
 
 function extractPaginatedData<T>(
     response: AxiosResponse<PaginatedApiResponse<T>>
-    ): PaginatedApiResponse<T> {
+): PaginatedApiResponse<T> {
     if (response.data.status === 'error') {
-    throw new Error(response.data.message || 'An error occurred');
+        throw new Error(response.data.message || 'An error occurred');
     }
     return response.data;
 }
@@ -135,54 +149,55 @@ export const categoryAPI = {
     },
 };
 
-// Document API 
+// Document API - Adjusted untuk backend Golang
 export const documentAPI = {
     getAll: async (params?: {
         page?: number;
         per_page?: number;
         search?: string;
-        category_id?: string | number;
+        letter_type?: string;
         start_date?: string;
         end_date?: string;
     }) => {
-        const response = await api.get<PaginatedApiResponse<Document>>('/documents', { params });
-        return extractPaginatedData(response);
+        // Backend return { documents: [...] } bukan format paginated standard
+        const response = await api.get<DocumentsApiResponse>('/documents', { params });
+        return response.data; // Return langsung { documents: [...] }
     },
 
     getById: async (id: string) => { 
-        const response = await api.get<ApiResponse<Document>>(`/documents/${id}`);
-        return extractData(response);
+        const response = await api.get<{ document: Document }>(`/documents/${id}`);
+        return response.data.document;
     },
 
     create: async (formData: FormData) => {
-        const response = await api.post<ApiResponse<Document>>('/documents', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        // Response: { message, file_id, file_name, document }
+        const response = await api.post<CreateDocumentResponse>('/documents', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
         });
-        return extractData(response);
+        return response.data; // Return full response dengan message
     },
 
     update: async (
         id: string, 
         data: {
-        title: string;
-        description?: string;
-        document_date: string;
-        category_id: string | number;
-        status?: string;
+            sender: string;
+            subject: string;
+            letter_type: 'masuk' | 'keluar';
+            user_id?: string;
         }
     ) => {
-        const response = await api.put<ApiResponse<Document>>(`/documents/${id}`, data);
-        return extractData(response);
+        const response = await api.put<{ message: string; document: Document }>(`/documents/${id}`, data);
+        return response.data;
     },
 
     delete: async (id: string) => { 
-        const response = await api.delete<ApiResponse<null>>(`/documents/${id}`);
+        const response = await api.delete<{ message: string }>(`/documents/${id}`);
         return response.data;
     },
 
     download: async (id: string) => { 
         return api.get(`/documents/${id}/download`, {
-        responseType: 'blob',
+            responseType: 'blob',
         });
     },
 };
@@ -206,8 +221,8 @@ export const activityLogAPI = {
 // User API (Admin only)
 export const userAPI = {
     getAll: async () => {
-        const response = await api.get<ApiResponse<User[]>>('/users'); 
-        return (response.data as unknown as { users: User[] }).users as User[];
+        const response = await api.get<{ users: User[] }>('/users'); 
+        return response.data.users;
     },
 
     create: async (data: {
@@ -216,39 +231,25 @@ export const userAPI = {
         password: string;
         role: 'admin' | 'staff';
     }) => {
-        const dataToSend = {
-            name: data.name,
-            username: data.username,
-            password: data.password,
-            role: data.role,
-        };
-        const response = await api.post<ApiResponse<{ user: User }>>('/users', dataToSend);
-        // Perbaikan di sini:
-        if (response.data.data && 'user' in response.data.data) {
-            return response.data.data.user;
-        }
-        throw new Error('Invalid response format');
+        const response = await api.post<{ message: string; user: User }>('/users', data);
+        return response.data.user;
     },
 
     update: async (
         id: string, 
         data: {
-        name: string;
-        username: string; 
-        password?: string;
-        role: 'admin' | 'staff';
+            name: string;
+            username: string; 
+            password?: string;
+            role: 'admin' | 'staff';
         }
     ) => {
-        const response = await api.put<ApiResponse<{ user: User }>>(`/users/${id}`, data);
-        // Perbaikan di sini:
-        if (response.data.data && 'user' in response.data.data) {
-            return response.data.data.user;
-        }
-        throw new Error('Invalid response format');
+        const response = await api.put<{ user: User }>(`/users/${id}`, data);
+        return response.data.user;
     },
 
     delete: async (id: string) => { 
-        const response = await api.delete<ApiResponse<null>>(`/users/${id}`);
+        const response = await api.delete<{ message: string }>(`/users/${id}`);
         return response.data;
     },
 };
@@ -259,12 +260,9 @@ export function getErrorMessage(error: unknown): string {
         if (error.response?.data?.error) {
             return error.response.data.error;
         }
-
-        // Cek pesan backend
         if (error.response?.data?.message) {
-             return error.response.data.message;
+            return error.response.data.message;
         }
-        
         return error.message || 'Terjadi kesalahan';
     }
     if (error instanceof Error) {

@@ -1,59 +1,53 @@
 export interface User {
-id: string; 
-name: string;
-username: string; 
-role: 'admin' | 'staff'; 
-created_at: string;
-updated_at: string;
+  id: string;
+  name: string;
+  username: string;
+  password?: string;
+  role: 'admin' | 'staff';
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Category {
-id: number;
-name: string;
-slug: string;
-description?: string;
-parent_id?: number;
-parent?: Category;
-children?: Category[];
-created_at: string;
-updated_at: string;
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  parent_id?: number;
+  parent?: Category;
+  children?: Category[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Document {
-id: string; 
-title: string; 
-description?: string;
-file_name: string;
-file_path: string;
-file_type: string;
-file_size: number;
-document_number: string;
-document_date: string;
-category_id: number; 
-uploaded_by: string; 
-status: 'active' | 'archived' | 'deleted';
-metadata?: unknown;
-category?: Category;
-uploader?: User;
-created_at: string;
-updated_at: string;
+  id: string;
+  sender: string;
+  file_name: string;
+  subject: string;
+  letter_type: 'masuk' | 'keluar';
+  user_id?: string | null;
+  user?: User;
+  user_name?: string;
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface ActivityLog {
-id: number;
-user_id: string; 
-document_id?: string; 
-action: string;
-description?: string;
-ip_address?: string;
-user_agent?: string;
-user?: User;
-document?: Document;
-created_at: string;
+  id: number;
+  user_id: string;
+  document_id?: string;
+  action: string;
+  description?: string;
+  ip_address?: string;
+  user_agent?: string;
+  user?: User;
+  document?: Document;
+  created_at: string;
 }
 
 export interface PaginatedResponse<T> {
- status?: 'success' | 'error';
+  status?: 'success' | 'error';
   message?: string;
   data: T[];
   current_page: number;
@@ -62,4 +56,35 @@ export interface PaginatedResponse<T> {
   total: number;
   from?: number;
   to?: number;
+}
+
+export interface DocumentsResponse {
+  documents: Document[];
+}
+
+export interface DocumentResponse {
+  document: Document;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
+export interface CreateDocumentResponse {
+  message: string;
+  file_id: string;
+  file_name: string;
+  document: Document;
+}
+
+// API Response types - sesuai dengan backend response
+export interface ApiDocumentsResponse {
+  documents: Document[];
+}
+
+export interface ApiCreateDocumentResponse {
+  message: string;
+  file_id: string;
+  file_name: string;
+  document: Document;
 }

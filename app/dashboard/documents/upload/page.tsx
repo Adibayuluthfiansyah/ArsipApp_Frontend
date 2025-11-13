@@ -1,15 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { documentAPI, categoryAPI, getErrorMessage } from "@/lib/api";
-import { Category } from "@/types";
+import { useState } from "react";
+import { documentAPI } from "@/lib/api";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Spinner } from "@/components/ui/spinner";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -27,33 +24,31 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, Upload, FileText, AlertCircle } from "lucide-react";
 
+interface ApiCreateDocumentResponse {
+  message: string;
+  file_id: string;
+  file_name: string;
+  document: {
+    id: string;
+    sender: string;
+    subject: string;
+    letter_type: string;
+    file_name: string;
+  };
+}
+
 export default function UploadDocumentPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    document_number: "",
-    document_date: "",
-    category_id: "",
+    sender: "",
+    subject: "",
+    letter_type: "masuk" as "masuk" | "keluar",
+    user_id: user?.id || "",
   });
   const [file, setFile] = useState<File | null>(null);
-
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
-    try {
-      const response = await categoryAPI.getAll();
-      setCategories(response.data);
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-      setError("Gagal memuat daftar kategori.");
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,51 +59,31 @@ export default function UploadDocumentPage() {
       return;
     }
 
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > 10 * 1024 * 1024) {
       setError("Ukuran file maksimal 10MB");
-      return;
-    }
-
-    if (
-      !formData.title ||
-      !formData.document_number ||
-      !formData.document_date ||
-      !formData.category_id
-    ) {
-      setError("Harap isi semua field yang bertanda *");
       return;
     }
 
     setLoading(true);
 
     try {
+      // Backend FormData Handle
       const data = new FormData();
-      data.append("title", formData.title);
-      data.append("description", formData.description);
-      data.append("document_number", formData.document_number);
-      data.append("document_date", formData.document_date);
-      data.append("category_id", formData.category_id);
+      data.append("sender", formData.sender);
+      data.append("subject", formData.subject);
+      data.append("letter_type", formData.letter_type);
+      data.append("user_id", formData.user_id);
       data.append("file", file);
 
-      await documentAPI.create(data);
-
-      toast.success("Dokumen berhasil diupload!", {
-        description: `File ${file.name} telah berhasil diarsipkan.`,
-      });
-
-      // Arahkan kembali ke daftar dokumen
+      const response = (await documentAPI.create(
+        data
+      )) as ApiCreateDocumentResponse;
+      // Response: { message, file_id, file_name, document }
+      alert(response.message || "Dokumen berhasil diupload ke Google Drive");
       router.push("/dashboard/documents");
-    } catch (error: unknown) {
-      console.error("Error uploading document:", error);
-      const errorMessage = getErrorMessage(error);
-      setError(errorMessage);
-      toast.error("Upload Gagal", {
-        description: `Terjadi kesalahan saat mengupload: ${errorMessage}`,
-      });
-      toast.error("Upload Gagal", {
-        description: `Terjadi kesalahan saat mengupload: ${errorMessage}`,
-      });
+    } catch (err: unknown) {
+      console.error("Error uploading document:", err);
+      setError(err instanceof Error ? err.message : "Gagal mengupload dokumen");
     } finally {
       setLoading(false);
     }
@@ -117,11 +92,8 @@ export default function UploadDocumentPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-
-      if (selectedFile.size > MAX_FILE_SIZE) {
+      if (selectedFile.size > 10 * 1024 * 1024) {
         setError("Ukuran file maksimal 10MB");
-        setFile(null); // Reset file
         return;
       }
       setFile(selectedFile);
@@ -136,9 +108,11 @@ export default function UploadDocumentPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Upload Dokumen</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Upload Dokumen Surat
+          </h1>
           <p className="text-muted-foreground mt-2">
-            Tambahkan dokumen baru ke sistem arsip
+            Upload dokumen ke Google Drive
           </p>
         </div>
       </div>
@@ -147,8 +121,7 @@ export default function UploadDocumentPage() {
         <CardHeader>
           <CardTitle>Informasi Dokumen</CardTitle>
           <CardDescription>
-            Isi form di bawah ini untuk mengupload dokumen baru. Tanda (*) wajib
-            diisi.
+            Isi form di bawah ini untuk mengupload dokumen baru
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -161,88 +134,47 @@ export default function UploadDocumentPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="title">Judul Dokumen *</Label>
+              <Label htmlFor="sender">Pengirim Surat *</Label>
               <Input
-                id="title"
+                id="sender"
                 required
-                placeholder="Masukkan judul dokumen"
-                value={formData.title}
+                placeholder="Nama pengirim surat"
+                value={formData.sender}
                 onChange={(e) =>
-                  setFormData({ ...formData, title: e.target.value })
+                  setFormData({ ...formData, sender: e.target.value })
                 }
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="document_number">Nomor Dokumen *</Label>
-                <Input
-                  id="document_number"
-                  required
-                  placeholder="Contoh: DOC-2024-001"
-                  value={formData.document_number}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      document_number: e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="document_date">Tanggal Dokumen *</Label>
-                <Input
-                  id="document_date"
-                  type="date"
-                  required
-                  value={formData.document_date}
-                  onChange={(e) =>
-                    setFormData({ ...formData, document_date: e.target.value })
-                  }
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="subject">Subjek Surat *</Label>
+              <Input
+                id="subject"
+                required
+                placeholder="Subjek/perihal surat"
+                value={formData.subject}
+                onChange={(e) =>
+                  setFormData({ ...formData, subject: e.target.value })
+                }
+              />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">Kategori *</Label>
+              <Label htmlFor="letter_type">Tipe Surat *</Label>
               <Select
-                value={formData.category_id}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, category_id: value })
+                value={formData.letter_type}
+                onValueChange={(value: "masuk" | "keluar") =>
+                  setFormData({ ...formData, letter_type: value })
                 }
-                required
               >
-                <SelectTrigger id="category">
-                  <SelectValue
-                    placeholder={
-                      categories.length > 0
-                        ? "Pilih kategori"
-                        : "Memuat kategori..."
-                    }
-                  />
+                <SelectTrigger id="letter_type">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id.toString()}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="masuk">Surat Masuk</SelectItem>
+                  <SelectItem value="keluar">Surat Keluar</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Deskripsi</Label>
-              <Textarea
-                id="description"
-                rows={4}
-                placeholder="Masukkan deskripsi dokumen (opsional)"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-              />
             </div>
 
             <div className="space-y-2">
@@ -268,6 +200,9 @@ export default function UploadDocumentPage() {
                   </div>
                 </div>
               )}
+              <p className="text-xs text-muted-foreground">
+                File akan diupload ke Google Drive
+              </p>
             </div>
 
             <div className="flex justify-end gap-3 pt-4">
@@ -275,20 +210,19 @@ export default function UploadDocumentPage() {
                 type="button"
                 variant="outline"
                 onClick={() => router.back()}
-                disabled={loading}
               >
                 Batal
               </Button>
               <Button type="submit" disabled={loading}>
                 {loading ? (
                   <>
-                    <Spinner className="mr-2 h-4 w-4" />
+                    <div className="mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     Mengupload...
                   </>
                 ) : (
                   <>
                     <Upload className="mr-2 h-4 w-4" />
-                    Upload Dokumen
+                    Upload ke Google Drive
                   </>
                 )}
               </Button>
