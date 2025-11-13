@@ -1,8 +1,12 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardContent,
@@ -10,18 +14,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import Image from "next/image";
-import { Spinner } from "@/components/ui/spinner";
-import { useAuth } from "@/context/AuthContext";
-import { toast } from "sonner";
-import Link from "next/link";
-
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,15 +28,14 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    try {
-      await login(username, password);
-      toast.success("Login Berhasil");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Login Gagal");
-      toast.error("Login Gagal", {
-        description: err instanceof Error ? err.message : "Login Gagal",
-      });
-    } finally {
+    const success = await login(username, password);
+
+    if (success === undefined) {
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 500);
+    } else {
+      setError("Username atau Password salah. Silakan coba lagi.");
       setLoading(false);
     }
   };
@@ -59,9 +57,9 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
+              <CardDescription className="text-red-600 bg-red-100 p-2 rounded">
+                <CardDescription>{error}</CardDescription>
+              </CardDescription>
             )}
 
             <div className="space-y-2">

@@ -1,12 +1,20 @@
-export interface User {
-  id: string;
+export type User = {
+  ID: number; 
   name: string;
-  username: string;
-  password?: string;
-  role: 'admin' | 'staff';
-  created_at: string;
-  updated_at: string;
-}
+  email: string;
+  role: string;
+};
+
+export type Document = {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  fileURL: string;
+  uploaderID: number;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export interface Category {
   id: number;
@@ -20,18 +28,6 @@ export interface Category {
   updated_at: string;
 }
 
-export interface Document {
-  id: string;
-  sender: string;
-  file_name: string;
-  subject: string;
-  letter_type: 'masuk' | 'keluar';
-  user_id?: string | null;
-  user?: User;
-  user_name?: string;
-  created_at: string;
-  updated_at?: string;
-}
 
 export interface ActivityLog {
   id: number;
