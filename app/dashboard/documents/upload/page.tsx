@@ -32,7 +32,18 @@ export default function UploadDocumentPage() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+
+      // Validasi ukuran file (max 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (selectedFile.size > maxSize) {
+        toast.error("File terlalu besar", {
+          description: "Ukuran maksimal file adalah 10MB",
+        });
+        return;
+      }
+
+      setFile(selectedFile);
     }
   };
 
@@ -45,32 +56,43 @@ export default function UploadDocumentPage() {
     }
 
     if (!user?.ID) {
-      toast.error("User tidak terautentikasi");
+      toast.error("User tidak terautentikasi", {
+        description: "Silakan login kembali",
+      });
+      router.push("/login");
       return;
     }
 
     setLoading(true);
 
     try {
+      console.log("📤 Uploading document:", {
+        sender,
+        subject,
+        letterType,
+        fileName: file.name,
+        fileSize: (file.size / 1024).toFixed(2) + " KB",
+      });
+
       const formData = new FormData();
       formData.append("sender", sender);
       formData.append("subject", subject);
       formData.append("letter_type", letterType);
-      formData.append("user_id", user.ID.toString());
       formData.append("file", file);
 
       const response = await documentAPI.create(formData);
 
+      console.log("✅ Upload success:", response);
+
       toast.success("Dokumen berhasil diupload!", {
-        description: response.message || "File telah tersimpan di Google Drive",
+        description: response.message || "File telah tersimpan di Cloudinary",
       });
 
-      // Redirect setelah 1 detik
       setTimeout(() => {
         router.push("/dashboard/documents");
-      }, 1000);
+      }, 1500);
     } catch (error) {
-      console.error("Upload error:", error);
+      console.error("❌ Upload error:", error);
       toast.error("Gagal mengupload dokumen", {
         description:
           error instanceof Error ? error.message : "Terjadi kesalahan",
@@ -84,6 +106,7 @@ export default function UploadDocumentPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Spinner />
+        <p className="ml-3 text-muted-foreground">Memuat data user...</p>
       </div>
     );
   }
@@ -121,6 +144,7 @@ export default function UploadDocumentPage() {
                 value={sender}
                 onChange={(e) => setSender(e.target.value)}
                 required
+                disabled={loading}
               />
             </div>
 
@@ -133,12 +157,18 @@ export default function UploadDocumentPage() {
                 onChange={(e) => setSubject(e.target.value)}
                 required
                 rows={3}
+                disabled={loading}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="letter_type">Tipe Surat</Label>
-              <Select value={letterType} onValueChange={setLetterType} required>
+              <Select
+                value={letterType}
+                onValueChange={setLetterType}
+                required
+                disabled={loading}
+              >
                 <SelectTrigger id="letter_type">
                   <SelectValue placeholder="Pilih tipe surat..." />
                 </SelectTrigger>
@@ -156,13 +186,17 @@ export default function UploadDocumentPage() {
                 type="file"
                 onChange={handleFileChange}
                 required
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp"
+                disabled={loading}
               />
               {file && (
                 <p className="text-sm text-muted-foreground">
                   File: {file.name} ({(file.size / 1024).toFixed(2)} KB)
                 </p>
               )}
+              <p className="text-xs text-muted-foreground">
+                Format: PDF, DOC, DOCX, JPG, PNG (Max 10MB)
+              </p>
             </div>
 
             <div className="flex gap-3 pt-4">

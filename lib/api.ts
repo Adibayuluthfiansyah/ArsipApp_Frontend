@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { Document, User, Category } from '@/types'; 
+import {  NotificationsApiResponse } from '@/types';
 import Cookies from 'js-cookie'; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
@@ -48,24 +49,42 @@ export const api = axios.create({
     },
 });
 
-// Add token to requests
+// ===================================
+// Interceptor Request (Mengirim Token)
+// ===================================
 api.interceptors.request.use((config) => {
     if (typeof window !== 'undefined') {
         const token = Cookies.get('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+        } else {
         }
     }
     return config;
 });
 
-// Handle responses and errors
+// ===================================
+// Interceptor Response (Menangani 401)
+// ===================================
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        console.log('✅ Response sukses:', response.config.url);
+        return response;
+    },
     (error) => {
+        console.error('❌ Error response:', {
+            url: error.config?.url,
+            status: error.response?.status,
+            data: error.response?.data
+        });
+
         if (error.response?.status === 401) {
-            if (typeof window !== 'undefined') {
-                Cookies.remove('token'); 
+            // Jangan redirect jika endpoint login/register
+            const isAuthEndpoint = error.config?.url?.includes('/login') || 
+                                    error.config?.url?.includes('/users');
+            
+            if (!isAuthEndpoint && typeof window !== 'undefined') {
+                Cookies.remove('token');
                 window.location.href = '/login';
             }
         }
@@ -94,18 +113,14 @@ export const authAPI = {
             user: User;
             message?: string;
         }>('/login', {
-            username, 
+            username,
             password,
         });
-        
-        // ✅ Backend return: { token, user: { ID, name, username, role } }
-        return response.data;
+        return response.data; 
     },
 
     me: async () => {
-        const response = await api.get<User>('/auth/me'); 
-        
-        // ✅ Backend return: { ID, name, username, role, created_at }
+        const response = await api.get<User>('/auth/me');
         return response.data;
     },
 
@@ -124,7 +139,7 @@ export const authAPI = {
             name: data.name, 
             username: data.username,
             password: data.password,
-            role: 'staff', 
+            role: 'admin', 
         };
         
         const response = await api.post<ApiResponse<{ message: string; user: User }>>('/users', dataToSend); 
@@ -203,7 +218,6 @@ export const documentAPI = {
     },
 };
 
-
 //  ==== User API (Admin only) =====
 export const userAPI = {
     getAll: async () => {
@@ -238,6 +252,21 @@ export const userAPI = {
         const response = await api.delete<{ message: string }>(`/users/${id}`);
         return response.data;
     },
+};
+
+// ==== Notification API ====
+export const notificationAPI = {
+  getAll: async () => {
+    const response = await api.get<NotificationsApiResponse>('/notifications');
+    return response.data;
+  },
+
+  markAsRead: async (id: string) => {
+    const response = await api.post<{ message: string }>(
+      `/notifications/${id}/read`
+    );
+    return response.data;
+  },
 };
 
 // Handle error axios

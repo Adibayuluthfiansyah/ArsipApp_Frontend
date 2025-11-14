@@ -7,6 +7,20 @@ export type User = {
   updated_at?: string;
 };
 
+export interface Notification {
+  id: string;
+  user_id: string;
+  message: string;
+  is_read: boolean;
+  link: string;
+  created_at: string; 
+}
+
+
+export interface NotificationsApiResponse {
+  notifications: Notification[];
+  unread_count: number;
+}
 export type Document = {
   id: number; 
   sender: string;

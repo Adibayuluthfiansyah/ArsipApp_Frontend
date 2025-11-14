@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Image from "next/image";
+import { toast } from "sonner";
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -28,9 +29,11 @@ export default function LoginPage() {
 
     try {
       await login(username, password);
+      toast.success("Login Berhasil");
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Username atau Password salah.";
+      toast.error(msg);
       setError(msg);
     } finally {
       setLoading(false);
