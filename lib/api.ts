@@ -129,7 +129,7 @@ export const authAPI = {
             name: data.name, 
             username: data.username,
             password: data.password,
-            role: 'admin', 
+            role: 'staff', 
         };
         
         const response = await api.post<ApiResponse<{ message: string; user: User }>>('/register', dataToSend); 

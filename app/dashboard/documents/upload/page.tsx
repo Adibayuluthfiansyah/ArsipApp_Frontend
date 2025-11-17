@@ -1,5 +1,5 @@
 "use client";
-
+import { AxiosError } from "axios";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -34,7 +34,6 @@ export default function UploadDocumentPage() {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
 
-      // Validasi ukuran file (max 10MB)
       const maxSize = 10 * 1024 * 1024;
       if (selectedFile.size > maxSize) {
         toast.error("File terlalu besar", {
@@ -55,7 +54,7 @@ export default function UploadDocumentPage() {
       return;
     }
 
-    if (!user?.ID) {
+    if (!user?.ID && !user?.id) {
       toast.error("User tidak terautentikasi", {
         description: "Silakan login kembali",
       });
@@ -66,14 +65,6 @@ export default function UploadDocumentPage() {
     setLoading(true);
 
     try {
-      console.log("Uploading document with data:", {
-        sender,
-        subject,
-        letterType,
-        fileName: file.name,
-        fileSize: (file.size / 1024).toFixed(2) + " KB",
-      });
-
       const formData = new FormData();
       formData.append("sender", sender);
       formData.append("subject", subject);
@@ -82,20 +73,25 @@ export default function UploadDocumentPage() {
 
       const response = await documentAPI.create(formData);
 
-      console.log("Upload success:", response);
-
       toast.success("Dokumen berhasil diupload!", {
-        description: response.message || "File telah tersimpan di Cloudinary",
+        description: response.message || "File telah tersimpan",
       });
 
       setTimeout(() => {
         router.push("/dashboard/documents");
       }, 1500);
-    } catch (error) {
-      console.error("Upload error:", error);
+    } catch (error: unknown) {
+      let errorMessage = "Terjadi kesalahan";
+
+      if (error instanceof AxiosError && error.response?.data) {
+        const errResp: { error?: string; message?: string } =
+          error.response.data;
+        errorMessage =
+          errResp.error || errResp.message || "Gagal mengupload dokumen";
+      }
+
       toast.error("Gagal mengupload dokumen", {
-        description:
-          error instanceof Error ? error.message : "Terjadi kesalahan",
+        description: errorMessage,
       });
     } finally {
       setLoading(false);
@@ -122,7 +118,7 @@ export default function UploadDocumentPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Upload Dokumen</h1>
           <p className="text-muted-foreground mt-2">
-            Upload dokumen baru ke Google Drive
+            Upload dokumen baru ke Cloudinary
           </p>
         </div>
       </div>

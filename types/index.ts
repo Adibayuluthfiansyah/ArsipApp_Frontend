@@ -1,6 +1,6 @@
 export type User = {
-  ID?: number;     
-  id?: number;      
+  ID?: string;     
+  id?: string;     
   name: string;
   username: string;
   role: string;
@@ -10,8 +10,7 @@ export type User = {
   UpdatedAt?: string;
 };
 
-
-export function getUserId(user: User): number | undefined {
+export function getUserId(user: User): string | undefined {
   return user.ID ?? user.id;
 }
 
@@ -30,14 +29,13 @@ export interface NotificationsApiResponse {
 }
 
 export type Document = {
-  id: number; 
-  sender: string;
+  id: string;   sender: string;
   file_name: string;
   subject: string;
   file_url: string; 
   cloudinary_id?: string;
   letter_type: 'masuk' | 'keluar';
-  user_id?: number; 
+  user_id?: string; 
   user?: User;
   user_name?: string;
   created_at: string;

@@ -11,29 +11,41 @@ export function useProtectedRoute(requireAdmin = false) {
   const hasChecked = useRef(false);
 
   useEffect(() => {
-    if (loading) return;
-    if (hasChecked.current) return;
+    // Wait for auth to finish loading
+    if (loading) {
+      console.log("useProtectedRoute: Still loading...");
+      return;
+    }
+
+    // Only check once
+    if (hasChecked.current) {
+      console.log("useProtectedRoute: Already checked");
+      return;
+    }
 
     hasChecked.current = true;
 
     // Check authentication
     if (!user) {
-      console.log('Not authenticated, redirecting to login...');
+      console.log("useProtectedRoute: Not authenticated, redirecting to login...");
       router.push("/login");
       return;
     }
 
+    console.log("useProtectedRoute: User authenticated:", {
+      id: user.ID || user.id,
+      name: user.name,
+      role: user.role,
+      isAdmin
+    });
+
+    // Check admin requirement
     if (requireAdmin && !isAdmin) {
-      console.log('Not admin, redirecting to dashboard...');
+      console.log("useProtectedRoute: Not admin, redirecting to dashboard...");
       router.push("/dashboard");
       return;
     }
-
-    console.log('Protected route check passed');
-
-    //eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, loading, isAdmin, requireAdmin]);
-
+  }, [user, loading, isAdmin, requireAdmin, router]);
 
   return { user, loading, isAdmin };
 }
