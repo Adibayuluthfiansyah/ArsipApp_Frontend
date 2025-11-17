@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
-import { Document, User, Category, NotificationsApiResponse , ActivityLog} from '@/types'; 
+import { Document, User, Category, NotificationsApiResponse , ActivityLog, DocumentStaff} from '@/types'; 
 import Cookies from 'js-cookie'; 
 
 
@@ -86,14 +86,6 @@ function extractData<T>(response: AxiosResponse<ApiResponse<T>>): T {
     return (response.data.data || response.data.user || response.data.users || response.data) as T;
 }
 
-function extractPaginatedData<T>(
-    response: AxiosResponse<PaginatedApiResponse<T>>
-): PaginatedApiResponse<T> {
-    if (response.data.status === 'error') {
-        throw new Error(response.data.message || 'An error occurred');
-    }
-    return response.data;
-}
 
 // ==== Auth API =====
 export const authAPI = {
@@ -114,9 +106,15 @@ export const authAPI = {
         return response.data;
     },
 
-   logout: async () => {
-    const response = await api.post<ApiResponse<null>>('/logout', {}); 
-    return response.data;
+ logout: async () => {
+    try {
+        const response = await api.post<ApiResponse<null>>('/logout', {}); 
+        return response.data;
+    } catch (error) {
+        // Bahkan jika error, tetap hapus token di frontend
+        console.error('Logout error:', error);
+        throw error;
+    }
 },
 
     register: async (data: {
@@ -137,29 +135,64 @@ export const authAPI = {
     },
 };
 
-// ==== Category API =====
-// export const categoryAPI = {
-//     getAll: async () => {
-//         const response = await api.get<PaginatedApiResponse<Category>>('/categories');
-//         return extractPaginatedData(response);
-//     },
+// ==== Document Staff API ====
+export const documentStaffAPI = {
+    getAll: async (params?: {
+        page?: number;
+        per_page?: number;
+        search?: string;
+    }) => {
+        const response = await api.get<{
+            documents: DocumentStaff[];
+            total: number;
+            current_page: number;
+            last_page: number;
+            per_page: number;
+        }>('/document_staff', { params });
+        return response.data;
+    },
 
-//     create: async (data: { name: string; description?: string; parent_id?: number }) => {
-//         const response = await api.post<ApiResponse<Category>>('/categories', data);
-//         return extractData(response);
-//     },
+    getById: async (id: string) => {
+        const response = await api.get<{ document: DocumentStaff }>(`/document_staff/${id}`);
+        return response.data.document;
+    },
 
-//     update: async (id: number, data: { name: string; description?: string; parent_id?: number }) => {
-//         const response = await api.put<ApiResponse<Category>>(`/categories/${id}`, data);
-//         return extractData(response);
-//     },
+    create: async (formData: FormData) => {
+        const response = await api.post<{
+            message: string;
+            file_id: string;
+            file_name: string;
+            document: DocumentStaff;
+        }>('/document_staff', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    },
 
-//     delete: async (id: number) => {
-//         const response = await api.delete<ApiResponse<null>>(`/categories/${id}`);
-//         return response.data;
-//     },
-// };
+    update: async (
+        id: string,
+        data: {
+            subject: string;
+        }
+    ) => {
+        const response = await api.put<{ message: string; document: DocumentStaff }>(
+            `/document_staff/${id}`,
+            data
+        );
+        return response.data;
+    },
 
+    delete: async (id: string) => {
+        const response = await api.delete<{ message: string }>(`/document_staff/${id}`);
+        return response.data;
+    },
+
+    download: async (id: string) => {
+        return api.get(`/document_staff/${id}/download`, {
+            responseType: 'blob',
+        });
+    },
+};
 
 
 

@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.push("/login");
     } catch (error: unknown) {
       console.error("AuthContext: Registration failed:", error);
-      throw error; // Biarkan halaman register menangani error
+      throw error;
     }
   };
   // ------------------------------------------

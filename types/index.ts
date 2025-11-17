@@ -53,6 +53,18 @@ export type Document = {
   updated_at: string;
 };
 
+export interface DocumentStaff {
+    id: string;
+    user_id: string;
+    user?: User;
+    file_name: string;
+    subject: string;
+    public_id: string;
+    resource_type: string;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface Category {
   id: number;
   name: string;
