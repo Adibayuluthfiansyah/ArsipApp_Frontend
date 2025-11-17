@@ -2,7 +2,7 @@ import { User } from "@/types";
 
 // Helper function untuk get user ID dari berbagai format
 export const getUserId = (user: User): number | undefined => {
-  return user.ID ?? user.id;
+  return user.ID ? parseInt(user.ID) : user.id ? parseInt(user.id) : undefined;
 };
 
 // Helper untuk format tanggal

@@ -72,6 +72,7 @@ export default function DocumentDetailPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      // Panggil documentAPI.update yang sudah diperbaiki (di lib/api.ts)
       await documentAPI.update(params.id as string, {
         sender: formData.sender,
         subject: formData.subject,
@@ -90,13 +91,17 @@ export default function DocumentDetailPage() {
   };
 
   const handleDownload = async () => {
-    if (!documentData?.file_url) {
+    // ==========================================================
+    // PERUBAHAN DI SINI:
+    // Backend Anda menyimpan URL di field 'file_name', bukan 'file_url'.
+    // ==========================================================
+    if (!documentData?.file_name) {
       toast.error("URL file tidak ditemukan");
       return;
     }
 
-    // Redirect ke Google Drive URL
-    window.open(documentData.file_url, "_blank");
+    // Redirect ke URL (yang ada di file_name)
+    window.open(documentData.file_name, "_blank");
     toast.success("Membuka file di tab baru");
   };
 
@@ -322,6 +327,9 @@ export default function DocumentDetailPage() {
                         Nama File
                       </p>
                       <p className="text-base break-all">
+                        {/* INI JUGA DIUBAH DARI file_url ke file_name
+                          AGAR KONSISTEN. Backend hanya punya file_name
+                        */}
                         {documentData.file_name || "-"}
                       </p>
                     </div>
@@ -333,14 +341,17 @@ export default function DocumentDetailPage() {
                       <p className="text-sm font-medium text-muted-foreground">
                         Link File
                       </p>
-                      {documentData.file_url ? (
+                      {/* ========================================================== */}
+                      {/* PERUBAHAN DI SINI: file_url -> file_name */}
+                      {/* ========================================================== */}
+                      {documentData.file_name ? (
                         <a
-                          href={documentData.file_url}
+                          href={documentData.file_name}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm text-primary hover:underline break-all"
                         >
-                          Buka di Google Drive
+                          Buka di Cloudinary/Google Drive
                         </a>
                       ) : (
                         <p className="text-sm text-muted-foreground">-</p>

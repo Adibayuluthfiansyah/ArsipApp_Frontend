@@ -110,14 +110,14 @@ export const authAPI = {
     },
 
     me: async () => {
-        const response = await api.get<User>('/me');
+        const response = await api.get<User>('/users/me');
         return response.data;
     },
 
    logout: async () => {
-        const response = await api.post<ApiResponse<null>>('/logout');
-        return response.data;
-    },
+    const response = await api.post<ApiResponse<null>>('/logout', {}); 
+    return response.data;
+},
 
     register: async (data: {
         name: string;
