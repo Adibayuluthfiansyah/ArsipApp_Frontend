@@ -17,11 +17,9 @@ export default function DashboardPage() {
   const [recentDocs, setRecentDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Prevent double fetch in React 18 StrictMode
   const hasFetched = useRef(false);
 
   useEffect(() => {
-    // ✅ Only fetch once
     if (hasFetched.current) return;
     hasFetched.current = true;
 
@@ -35,8 +33,6 @@ export default function DashboardPage() {
       const docsResponse = await documentAPI.getAll({ per_page: 5 });
       const docs = docsResponse.documents || [];
 
-      console.log("Dashboard data loaded:", docs.length, "documents");
-
       setRecentDocs(docs);
       setStats({
         totalDocuments: docsResponse.total || docs.length,
@@ -44,7 +40,6 @@ export default function DashboardPage() {
       });
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
-      // Don't show error toast for 401 (handled by interceptor)
     } finally {
       setLoading(false);
     }
@@ -62,11 +57,12 @@ export default function DashboardPage() {
     }
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(2) + " MB";
-  };
+  // === FUNCTION TIDAK DIPAKAI ===
+  // const formatFileSize = (bytes: number) => {
+  //   if (bytes < 1024) return bytes + " B";
+  //   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
+  //   return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+  // };
 
   if (loading) {
     return (

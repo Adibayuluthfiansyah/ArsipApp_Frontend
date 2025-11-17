@@ -30,17 +30,14 @@ export function NotificationBell() {
     try {
       setIsLoading(true);
       setError(null);
-      console.log("🔔 Fetching notifications...");
 
       const response = await notificationAPI.getAll();
-      console.log("✅ Notifications loaded:", response);
 
       setNotifications(response.notifications || []);
       setUnreadCount(response.unread_count || 0);
     } catch (error: unknown) {
       console.error("Gagal mengambil notifikasi:", error);
 
-      // Jangan tampilkan toast error jika 401 (sudah di-handle oleh interceptor)
       if (
         (error as unknown as { response?: { status?: number } }).response
           ?.status !== 401
@@ -96,7 +93,7 @@ export function NotificationBell() {
         router.push(notification.link);
       }
     } catch (error) {
-      console.error("❌ Gagal memproses notifikasi:", error);
+      console.error("Gagal memproses notifikasi:", error);
       toast.error("Gagal memproses notifikasi");
     }
   };

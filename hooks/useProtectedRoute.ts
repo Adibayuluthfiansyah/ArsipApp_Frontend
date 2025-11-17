@@ -1,4 +1,3 @@
-// hooks/useProtectedRoute.ts
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -30,7 +29,7 @@ export function useProtectedRoute(requireAdmin = false) {
       return;
     }
 
-    console.log('✅ Protected route check passed');
+    console.log('Protected route check passed');
 
     //eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading, isAdmin, requireAdmin]);

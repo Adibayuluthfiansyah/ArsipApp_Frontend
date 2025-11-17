@@ -1,11 +1,19 @@
 export type User = {
-  ID: number;
+  ID?: number;     
+  id?: number;      
   name: string;
   username: string;
   role: string;
   created_at?: string;
+  CreatedAt?: string; 
   updated_at?: string;
+  UpdatedAt?: string;
 };
+
+
+export function getUserId(user: User): number | undefined {
+  return user.ID ?? user.id;
+}
 
 export interface Notification {
   id: string;
@@ -16,11 +24,11 @@ export interface Notification {
   created_at: string; 
 }
 
-
 export interface NotificationsApiResponse {
   notifications: Notification[];
   unread_count: number;
 }
+
 export type Document = {
   id: number; 
   sender: string;
@@ -47,20 +55,6 @@ export interface Category {
   created_at: string;
   updated_at: string;
 }
-
-
-// export interface ActivityLog {
-//   id: number;
-//   user_id: string;
-//   document_id?: string;
-//   action: string;
-//   description?: string;
-//   ip_address?: string;
-//   user_agent?: string;
-//   user?: User;
-//   document?: Document;
-//   created_at: string;
-// }
 
 export interface PaginatedResponse<T> {
   status?: 'success' | 'error';

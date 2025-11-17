@@ -5,47 +5,25 @@ import { AdminGuard } from "@/components/ui/admin/admin-guard";
 import { userAPI, getErrorMessage } from "@/lib/api";
 import { User } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import {
-  UserPlus,
-  Edit,
-  Trash2,
-  ShieldCheck,
-  User as UserIcon,
-} from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { AxiosError } from "axios";
+import { getUserId } from "@/lib/userHelpers";
+import { UserTable } from "@/components/dashboards/TableUser";
+import { UserMobileCard } from "@/components/dashboards/UserMobileCard";
+import { UserFormDialog } from "@/components/dashboards/UserFormDialog";
+import { DeleteUserDialog } from "@/components/dashboards/DeleteUserDialog";
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     username: "",
@@ -61,10 +39,23 @@ export default function AdminUsersPage() {
     setLoading(true);
     try {
       const data = await userAPI.getAll();
-      setUsers(data);
-    } catch (error) {
+
+      if (Array.isArray(data)) {
+        setUsers(data);
+      } else {
+        setUsers([]);
+        toast.error("Format data user tidak valid");
+      }
+    } catch (error: unknown) {
       console.error("Error fetching users:", error);
-      toast.error("Gagal memuat data user");
+
+      if (error instanceof AxiosError && error.response?.status !== 401) {
+        const errorMsg = getErrorMessage(error);
+        toast.error("Gagal memuat data user", {
+          description: errorMsg,
+        });
+      }
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -72,23 +63,48 @@ export default function AdminUsersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.name.trim() || !formData.username.trim()) {
+      toast.error("Nama dan username harus diisi");
+      return;
+    }
+
+    if (!editingUser && !formData.password.trim()) {
+      toast.error("Password harus diisi untuk user baru");
+      return;
+    }
+
     setLoading(true);
 
     try {
       if (editingUser) {
-        // Update user
-        await userAPI.update(editingUser.ID.toString(), {
-          name: formData.name,
-          username: formData.username,
-          password: formData.password || undefined,
+        const userId = getUserId(editingUser);
+
+        if (!userId) {
+          throw new Error("User ID tidak valid");
+        }
+
+        const updateData: {
+          name: string;
+          username: string;
+          password?: string;
+          role: "admin" | "staff";
+        } = {
+          name: formData.name.trim(),
+          username: formData.username.trim(),
           role: formData.role,
-        });
+        };
+
+        if (formData.password.trim()) {
+          updateData.password = formData.password;
+        }
+
+        await userAPI.update(userId.toString(), updateData);
         toast.success("User berhasil diupdate");
       } else {
-        // Create new user
         await userAPI.create({
-          name: formData.name,
-          username: formData.username,
+          name: formData.name.trim(),
+          username: formData.username.trim(),
           password: formData.password,
           role: formData.role,
         });
@@ -97,8 +113,8 @@ export default function AdminUsersPage() {
 
       setDialogOpen(false);
       resetForm();
-      fetchUsers();
-    } catch (error) {
+      await fetchUsers();
+    } catch (error: unknown) {
       console.error("Error saving user:", error);
       const errorMessage = getErrorMessage(error);
       toast.error(editingUser ? "Gagal update user" : "Gagal menambah user", {
@@ -110,26 +126,53 @@ export default function AdminUsersPage() {
   };
 
   const handleEdit = (user: User) => {
+    const userId = getUserId(user);
+
+    if (!userId) {
+      toast.error("ID user tidak valid");
+      return;
+    }
+
     setEditingUser(user);
     setFormData({
-      name: user.name,
-      username: user.username,
+      name: user.name || "",
+      username: user.username || "",
       password: "",
-      role: user.role as "admin" | "staff",
+      role: (user.role as "admin" | "staff") || "staff",
     });
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Yakin ingin menghapus user ini?")) return;
+  const handleDeleteClick = (user: User) => {
+    setUserToDelete(user);
+    setDeleteDialogOpen(true);
+  };
 
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) return;
+
+    const userId = getUserId(userToDelete);
+
+    if (!userId) {
+      toast.error("ID user tidak valid");
+      return;
+    }
+
+    setLoading(true);
     try {
-      await userAPI.delete(id.toString());
+      await userAPI.delete(userId.toString());
       toast.success("User berhasil dihapus");
-      fetchUsers();
-    } catch (error) {
+      await fetchUsers();
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+    } catch (error: unknown) {
       console.error("Error deleting user:", error);
-      toast.error("Gagal menghapus user");
+      const errorMessage = getErrorMessage(error);
+      toast.error("Gagal menghapus user", {
+        description: errorMessage,
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -152,179 +195,82 @@ export default function AdminUsersPage() {
 
   return (
     <AdminGuard>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
+      <div className="space-y-6 p-4 md:p-6">
+        {/* Header */}
+        <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
               User Management
             </h1>
-            <p className="text-muted-foreground mt-2">
+            <p className="text-muted-foreground mt-2 text-sm md:text-base">
               Kelola user dan hak akses sistem
             </p>
           </div>
 
-          <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setEditingUser(null)}>
-                <UserPlus className="mr-2 h-4 w-4" />
-                Tambah User
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {editingUser ? "Edit User" : "Tambah User Baru"}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nama Lengkap</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    value={formData.username}
-                    onChange={(e) =>
-                      setFormData({ ...formData, username: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password">
-                    Password {editingUser && "(Kosongkan jika tidak diubah)"}
-                  </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
-                    }
-                    required={!editingUser}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value: "admin" | "staff") =>
-                      setFormData({ ...formData, role: value })
-                    }
-                  >
-                    <SelectTrigger id="role">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="staff">Staff</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex gap-2 pt-4">
-                  <Button type="submit" disabled={loading} className="flex-1">
-                    {loading ? <Spinner className="mr-2 h-4 w-4" /> : null}
-                    {editingUser ? "Update" : "Tambah"} User
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleDialogClose(false)}
-                  >
-                    Batal
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button
+            onClick={() => {
+              setEditingUser(null);
+              resetForm();
+              setDialogOpen(true);
+            }}
+            className="w-full md:w-auto"
+          >
+            <UserPlus className="mr-2 h-4 w-4" />
+            Tambah User
+          </Button>
         </div>
 
+        {/* User List */}
         <Card>
           <CardHeader>
-            <CardTitle>Daftar User</CardTitle>
+            <CardTitle className="text-lg md:text-xl">Daftar User</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0 md:p-6">
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <Spinner className="h-8 w-8" />
               </div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground px-4">
+                Belum ada user
+              </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Nama</TableHead>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Dibuat</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((user) => (
-                    <TableRow key={user.ID}>
-                      <TableCell>{user.ID}</TableCell>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.username}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            user.role === "admin" ? "default" : "secondary"
-                          }
-                        >
-                          {user.role === "admin" ? (
-                            <ShieldCheck className="mr-1 h-3 w-3" />
-                          ) : (
-                            <UserIcon className="mr-1 h-3 w-3" />
-                          )}
-                          {user.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {user.created_at
-                          ? new Date(user.created_at).toLocaleDateString(
-                              "id-ID"
-                            )
-                          : "-"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(user)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(user.ID)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <>
+                <UserTable
+                  users={users}
+                  onEdit={handleEdit}
+                  onDelete={handleDeleteClick}
+                  loading={loading}
+                />
+                <UserMobileCard
+                  users={users}
+                  onEdit={handleEdit}
+                  onDelete={handleDeleteClick}
+                  loading={loading}
+                />
+              </>
             )}
           </CardContent>
         </Card>
+
+        {/* Dialogs */}
+        <UserFormDialog
+          open={dialogOpen}
+          onOpenChange={handleDialogClose}
+          editingUser={editingUser}
+          formData={formData}
+          onFormChange={setFormData}
+          onSubmit={handleSubmit}
+          loading={loading}
+        />
+
+        <DeleteUserDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          user={userToDelete}
+          onConfirm={handleDeleteConfirm}
+          loading={loading}
+        />
       </div>
     </AdminGuard>
   );

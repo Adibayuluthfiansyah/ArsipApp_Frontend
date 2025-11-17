@@ -35,14 +35,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Prevent double fetch
   const hasFetched = useRef(false);
   const isFetching = useRef(false);
 
   useEffect(() => {
-    // ✅ Prevent multiple simultaneous auth checks
     if (hasFetched.current || isFetching.current) {
-      console.log("🔄 Auth check already done or in progress, skipping...");
+      console.log("Auth check already done or in progress, skipping...");
       return;
     }
 
@@ -50,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = Cookies.get("access_token");
 
       if (!token) {
-        console.log("❌ No token found, skipping auth check");
+        console.log("No token found, skipping auth check");
         setLoading(false);
         hasFetched.current = true;
         return;
@@ -58,15 +56,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         isFetching.current = true;
-        console.log("🔐 Verifying user session...");
-
         const userData = await authAPI.me();
-
-        console.log("✅ User verified:", userData);
         setUser(userData);
         setIsAdmin(userData.role === "admin");
       } catch (error) {
-        console.error("❌ Session invalid:", error);
+        console.error("Session invalid:", error);
         Cookies.remove("access_token");
         setUser(null);
         setIsAdmin(false);
@@ -78,26 +72,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     verifyUser();
-  }, []); // ✅ Empty dependency - run ONCE
+  }, []);
 
   const login = async (username: string, password: string) => {
     try {
+      // Panggil authAPI.login, yang mengembalikan { token, user }
       const response = await authAPI.login(username, password);
-      if (!response.token) {
-        throw new Error("Token tidak diterima dari server");
+      if (!response.token || !response.user) {
+        throw new Error("Token atau data user tidak diterima dari server");
       }
-
-      // Simpan token di cookie
       Cookies.set("access_token", response.token, {
         expires: 1,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
       });
 
-      // Me section data user
-      const userData = await authAPI.me();
-      setUser(userData);
-      setIsAdmin(userData.role === "admin");
+      setUser(response.user);
+      setIsAdmin(response.user.role === "admin");
 
       toast.success("Login Berhasil!");
 

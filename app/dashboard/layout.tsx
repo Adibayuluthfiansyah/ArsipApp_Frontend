@@ -17,7 +17,7 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    console.log("🔄 DashboardLayout rendered");
+    console.log(" DashboardLayout rendered");
   });
 
   if (loading) {

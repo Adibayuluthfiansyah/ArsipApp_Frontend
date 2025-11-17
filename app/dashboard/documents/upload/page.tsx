@@ -35,7 +35,7 @@ export default function UploadDocumentPage() {
       const selectedFile = e.target.files[0];
 
       // Validasi ukuran file (max 10MB)
-      const maxSize = 10 * 1024 * 1024; // 10MB
+      const maxSize = 10 * 1024 * 1024;
       if (selectedFile.size > maxSize) {
         toast.error("File terlalu besar", {
           description: "Ukuran maksimal file adalah 10MB",
@@ -66,7 +66,7 @@ export default function UploadDocumentPage() {
     setLoading(true);
 
     try {
-      console.log("📤 Uploading document:", {
+      console.log("Uploading document with data:", {
         sender,
         subject,
         letterType,
@@ -82,7 +82,7 @@ export default function UploadDocumentPage() {
 
       const response = await documentAPI.create(formData);
 
-      console.log("✅ Upload success:", response);
+      console.log("Upload success:", response);
 
       toast.success("Dokumen berhasil diupload!", {
         description: response.message || "File telah tersimpan di Cloudinary",
@@ -92,7 +92,7 @@ export default function UploadDocumentPage() {
         router.push("/dashboard/documents");
       }, 1500);
     } catch (error) {
-      console.error("❌ Upload error:", error);
+      console.error("Upload error:", error);
       toast.error("Gagal mengupload dokumen", {
         description:
           error instanceof Error ? error.message : "Terjadi kesalahan",

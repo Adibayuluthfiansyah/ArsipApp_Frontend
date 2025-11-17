@@ -52,23 +52,19 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
     if (typeof window !== 'undefined') {
         const token = Cookies.get('access_token');
-        console.log('🔑 Token found:', token ? 'YES' : 'NO'); // Debug
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
-            console.log('📤 Request URL:', config.url); // Debug
         }
     }
     return config;
 });
 
-// Interceptor Response dengan logging lebih detail
+// Interceptor Response 
 api.interceptors.response.use(
     (response) => {
-        console.log('✅ Response:', response.config.url, response.status);
         return response;
     },
     (error) => {
-        console.error('❌ Error:', error.config?.url, error.response?.status);
         console.error('Error details:', error.response?.data);
         
         if (error.response?.status === 401) {
@@ -76,7 +72,7 @@ api.interceptors.response.use(
                                     error.config?.url?.includes('/register');
             
             if (!isAuthEndpoint && typeof window !== 'undefined') {
-                console.log('🚪 Redirecting to login...');
+                console.log('Redirecting to login...');
                 Cookies.remove('access_token');
                 window.location.href = '/login';
             }
@@ -119,7 +115,7 @@ export const authAPI = {
     },
 
    logout: async () => {
-        const response = await api.post<ApiResponse<null>>('/auth/logout');
+        const response = await api.post<ApiResponse<null>>('/logout');
         return response.data;
     },
 
@@ -133,7 +129,7 @@ export const authAPI = {
             name: data.name, 
             username: data.username,
             password: data.password,
-            role: 'staff', 
+            role: 'admin', 
         };
         
         const response = await api.post<ApiResponse<{ message: string; user: User }>>('/register', dataToSend); 
@@ -214,9 +210,30 @@ export const documentAPI = {
 
 //  ==== User API (Admin only) =====
 export const userAPI = {
-    getAll: async () => {
-        const response = await api.get<{ users: User[] }>('/users'); 
-        return response.data.users;
+   getAll: async () => {
+        try {
+            const response = await api.get('/users');
+            console.log('✅ Full Response:', response);
+            console.log('✅ Response Data:', response.data);
+            
+            // Cek apakah ada data users
+            const users = response.data?.users || response.data || [];
+            
+            console.log('✅ Users Array:', users);
+            
+            // Pastikan users adalah array
+            if (!Array.isArray(users)) {
+                console.error('❌ Users bukan array:', users);
+                return [];
+            }
+            
+            // Return users langsung tanpa modifikasi
+            return users;
+            
+        } catch (error) {
+            console.error("❌ Error fetching users:", error);
+            throw error;
+        }
     },
 
     create: async (data: {
@@ -252,12 +269,10 @@ export const userAPI = {
 export const notificationAPI = {
   getAll: async () => {
     try {
-      console.log('📡 Fetching notifications...');
       const response = await api.get<NotificationsApiResponse>('/notifications');
-      console.log('📬 Notifications response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('❌ Notification fetch error:', error);
+      console.error(' Notification fetch error:', error);
       throw error;
     }
   },
@@ -269,7 +284,7 @@ export const notificationAPI = {
       );
       return response.data;
     } catch (error) {
-      console.error('❌ Mark as read error:', error);
+      console.error('Mark as read error:', error);
       throw error;
     }
   },
