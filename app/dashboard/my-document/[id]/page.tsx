@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { documentStaffAPI, getErrorMessage } from "@/lib/api";
 import { DocumentStaff } from "@/types";
@@ -14,8 +14,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"; // Import Select
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+} from "@/components/ui/select";
+import { ArrowLeft, Save, Loader2, ExternalLink, Download } from "lucide-react";
 import { toast } from "sonner";
 
 export default function EditDocumentStaffPage() {
@@ -26,15 +26,11 @@ export default function EditDocumentStaffPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [document, setDocument] = useState<DocumentStaff | null>(null);
-
-  // --- PERBAIKAN STATE ---
-  // Pisahkan state form dari state dokumen
   const [formData, setFormData] = useState({
     sender: "",
     subject: "",
     letter_type: "masuk" as "masuk" | "keluar",
   });
-  // --- AKHIR PERBAIKAN ---
 
   useEffect(() => {
     if (id) {
@@ -47,14 +43,14 @@ export default function EditDocumentStaffPage() {
     try {
       setLoading(true);
       const doc = await documentStaffAPI.getById(id);
+      console.log("📄 Fetched document:", doc); // Debug log
+
       setDocument(doc);
-      // --- PERBAIKAN: SET FORM DATA ---
       setFormData({
         sender: doc.sender || "",
         subject: doc.subject || "",
         letter_type: (doc.letter_type as "masuk" | "keluar") || "masuk",
       });
-      // --- AKHIR PERBAIKAN ---
     } catch (error) {
       console.error("Error fetching document:", error);
       toast.error(getErrorMessage(error));
@@ -67,23 +63,18 @@ export default function EditDocumentStaffPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // --- PERBAIKAN VALIDASI ---
     if (!formData.subject.trim() || !formData.sender.trim()) {
       toast.error("Sender dan Subjek wajib diisi");
       return;
     }
-    // --- AKHIR PERBAIKAN ---
 
     try {
       setSaving(true);
-      // --- PERBAIKAN: KIRIM SEMUA DATA ---
-      // Ini akan memanggil api.ts baru yang mengirim FormData
       await documentStaffAPI.update(id, {
         sender: formData.sender.trim(),
         subject: formData.subject.trim(),
         letter_type: formData.letter_type,
       });
-      // --- AKHIR PERBAIKAN ---
       toast.success("Dokumen berhasil diupdate");
       router.push("/dashboard/my-document");
     } catch (error) {
@@ -105,6 +96,16 @@ export default function EditDocumentStaffPage() {
     setFormData((prev) => ({ ...prev, letter_type: value }));
   };
 
+  // ✅ Handler untuk buka file
+  const handleOpenFile = () => {
+    if (!document?.file_name) {
+      toast.error("URL file tidak ditemukan");
+      return;
+    }
+    window.open(document.file_name, "_blank");
+    toast.success("Membuka file di tab baru");
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto p-6 flex justify-center items-center min-h-[400px]">
@@ -114,7 +115,14 @@ export default function EditDocumentStaffPage() {
   }
 
   if (!document) {
-    return null;
+    return (
+      <div className="container mx-auto p-6 text-center">
+        <p className="text-muted-foreground">Dokumen tidak ditemukan</p>
+        <Button onClick={() => router.back()} className="mt-4">
+          Kembali
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -133,27 +141,63 @@ export default function EditDocumentStaffPage() {
         <h1 className="text-2xl font-bold mb-6">Edit Dokumen (Staff)</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* File Name (Read Only) */}
+          {/* ✅ FILE INFO WITH DOWNLOAD BUTTON */}
           <div className="space-y-2">
-            <Label>Nama File</Label>
-            <Input
-              value={document.file_name?.split("/").pop() || "-"}
-              disabled
-              className="bg-muted"
-            />
+            <Label>File Dokumen</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                value={
+                  document.file_name
+                    ? document.file_name.split("/").pop() || "File tersedia"
+                    : "File tidak ditemukan"
+                }
+                disabled
+                className="bg-muted flex-1"
+              />
+
+              {/* ✅ TOMBOL DOWNLOAD/BUKA FILE */}
+              {document.file_name && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={handleOpenFile}
+                  title="Buka File"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            {/* ✅ LINK LANGSUNG KE CLOUDINARY */}
+            {document.file_name && (
+              <div className="flex items-center gap-2 text-sm">
+                <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                <a
+                  href={document.file_name}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline truncate"
+                >
+                  {document.file_name}
+                </a>
+              </div>
+            )}
+
             <p className="text-sm text-muted-foreground">
-              File tidak dapat diubah
+              File tidak dapat diubah. Jika perlu mengubah file, hapus dokumen
+              ini dan upload ulang.
             </p>
           </div>
 
-          {/* --- FIELD BARU: SENDER (EDITABLE) --- */}
+          {/* SENDER */}
           <div className="space-y-2">
             <Label htmlFor="sender">
               Pengirim <span className="text-destructive">*</span>
             </Label>
             <Input
               id="sender"
-              name="sender" // tambahkan name
+              name="sender"
               placeholder="Contoh: Instansi/Perusahaan Pengirim"
               value={formData.sender}
               onChange={handleFormChange}
@@ -161,16 +205,15 @@ export default function EditDocumentStaffPage() {
               required
             />
           </div>
-          {/* --- AKHIR FIELD BARU --- */}
 
-          {/* Subject (Editable) */}
+          {/* SUBJECT */}
           <div className="space-y-2">
             <Label htmlFor="subject">
               Subjek Dokumen <span className="text-destructive">*</span>
             </Label>
             <Input
               id="subject"
-              name="subject" // tambahkan name
+              name="subject"
               placeholder="Contoh: Undangan Rapat Koordinasi"
               value={formData.subject}
               onChange={handleFormChange}
@@ -179,7 +222,7 @@ export default function EditDocumentStaffPage() {
             />
           </div>
 
-          {/* --- FIELD BARU: LETTER TYPE (EDITABLE) --- */}
+          {/* LETTER TYPE */}
           <div className="space-y-2">
             <Label htmlFor="letter_type">
               Jenis Surat <span className="text-destructive">*</span>
@@ -198,15 +241,19 @@ export default function EditDocumentStaffPage() {
               </SelectContent>
             </Select>
           </div>
-          {/* --- AKHIR FIELD BARU --- */}
 
-          {/* Upload Info */}
+          {/* UPLOAD INFO */}
           <div className="space-y-2">
             <Label>Informasi Upload</Label>
-            <div className="text-sm text-muted-foreground space-y-1">
-              <p>Diupload oleh: {document.user?.name || "Unknown"}</p>
+            <div className="text-sm text-muted-foreground space-y-1 p-3 bg-muted rounded-md">
               <p>
-                Tanggal:{" "}
+                <span className="font-medium text-foreground">
+                  Diupload oleh:
+                </span>{" "}
+                {document.user?.name || "Unknown"}
+              </p>
+              <p>
+                <span className="font-medium text-foreground">Tanggal:</span>{" "}
                 {new Date(document.created_at).toLocaleDateString("id-ID", {
                   day: "numeric",
                   month: "long",
@@ -215,10 +262,24 @@ export default function EditDocumentStaffPage() {
                   minute: "2-digit",
                 })}
               </p>
+              {document.updated_at !== document.created_at && (
+                <p>
+                  <span className="font-medium text-foreground">
+                    Terakhir diupdate:
+                  </span>{" "}
+                  {new Date(document.updated_at).toLocaleDateString("id-ID", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Actions */}
+          {/* ACTIONS */}
           <div className="flex gap-3 pt-4">
             <Button
               type="button"

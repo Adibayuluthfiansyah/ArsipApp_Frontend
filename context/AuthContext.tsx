@@ -124,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         isAdmin,
         login,
-        register, // <-- 3. DITAMBAHKAN DI SINI
+        register,
         logout,
         refreshUser,
       }}

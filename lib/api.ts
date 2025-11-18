@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
-import { Document, User, NotificationsApiResponse , ActivityLog, DocumentStaff} from '@/types'; 
+import { Document, User, NotificationsApiResponse , ActivityLog, DocumentStaff, DocumentStaffApiResponse} from '@/types'; 
 import Cookies from 'js-cookie'; 
 
 
@@ -15,15 +15,15 @@ interface ApiResponse<T> {
     errors?: Record<string, string[]>;
 }
 
-interface PaginatedApiResponse<T> {
-    status?: 'success' | 'error';
-    message?: string;
-    data: T[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-}
+// interface PaginatedApiResponse<T> {
+//     status?: 'success' | 'error';
+//     message?: string;
+//     data: T[];
+//     current_page: number;
+//     last_page: number;
+//     per_page: number;
+//     total: number;
+// }
 
 interface DocumentsApiResponse {
     documents: Document[];
@@ -111,7 +111,6 @@ export const authAPI = {
         const response = await api.post<ApiResponse<null>>('/logout', {}); 
         return response.data;
     } catch (error) {
-        // Bahkan jika error, tetap hapus token di frontend
         console.error('Logout error:', error);
         throw error;
     }
@@ -123,89 +122,34 @@ export const authAPI = {
         password: string;
         password_confirmation: string;
     }) => {
+        console.warn("PERINGATAN KEAMANAN: Memanggil endpoint /users/admin yang tidak terproteksi untuk registrasi.");
+
         const dataToSend = {
             name: data.name, 
             username: data.username,
             password: data.password,
-            role: 'staff', 
+
         };
         
-        const response = await api.post<ApiResponse<{ message: string; user: User }>>('/register', dataToSend); 
+        const response = await api.post<ApiResponse<{ message: string; user: User }>>('/users/admin', dataToSend); 
         return extractData(response);
     },
 };
 
-// ==== Document Staff API ====
-export const documentStaffAPI = {
-    getAll: async (params?: {
-        page?: number;
-        per_page?: number;
-        search?: string;
-    }) => {
-        const response = await api.get<{
-            document_staffs: DocumentStaff[];
-            total?: number;
-        }>('/document_staff', { params });
-        
-        return {
-            documents: response.data.document_staffs || [],
-            total: response.data.total || response.data.document_staffs?.length || 0,
-            current_page: 1,
-            last_page: 1,
-            per_page: response.data.document_staffs?.length || 0,
-        };
-    },
-
-    getById: async (id: string) => {
-        const response = await api.get<{ document_staff: DocumentStaff }>(`/document_staff/${id}`);
-        return response.data.document_staff;
-    },
-
-    create: async (formData: FormData) => {
-        const response = await api.post<{
-            document_staff: DocumentStaff;
-        }>('/document_staff', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        
-        return {
-            message: 'Dokumen berhasil diupload',
-            document: response.data.document_staff,
-        };
-    },
-
-    update: async (id: string, data: { subject: string }) => {
-        const response = await api.put<{ 
-            message: string; 
-            document_staff: DocumentStaff; 
-        }>(`/document_staff/${id}`, data);
-        
-        return {
-            message: response.data.message,
-            document: response.data.document_staff,
-        };
-    },
-
-    delete: async (id: string) => {
-        const response = await api.delete<{ message: string }>(`/document_staff/${id}`);
-        return response.data;
-    },
-};
 
 
 // ==== Activity Log API ====
 export const activityLogAPI = {
   getAll: async () => {
-    // Backend Anda mengembalikan { data: [], total: 0 }
-    // Sesuaikan dengan PaginatedApiResponse jika perlu
     const response = await api.get<{ data: ActivityLog[]; total: number }>(
       '/activity-logs'
     );
-    // Kita ambil 'data' karena backend mengirim { data: [...] }
     return response.data.data; 
   },
 };
 
+
+// Tambahkan/update di file lib/api.ts
 
 // ==== Document API ====
 export const documentAPI = {
@@ -248,11 +192,97 @@ export const documentAPI = {
         return response.data;
     },
 
+    // ✅ UPDATE: Menggunakan endpoint download baru
     download: async (id: string | number) => { 
-        return api.get(`/documents/${id}/download`, {
-            responseType: 'blob',
-        });
+        // Cara 1: Redirect langsung
+        const downloadUrl = `${API_URL}/documents/${id}/download`;
+        window.open(downloadUrl, '_blank');
     },
+    
+    // ✅ ATAU bisa juga return URL untuk digunakan di <a> tag
+    getDownloadUrl: (id: string | number) => {
+        return `${API_URL}/documents/${id}/download`;
+    },
+};
+
+// ==== Document Staff API ====
+export const documentStaffAPI = {
+  getAll: async (params?: {
+    page?: number;
+    per_page?: number;
+    search?: string;
+    letter_type?: string;
+  }) => {
+    const response = await api.get<DocumentStaffApiResponse>('/document_staff', {
+      params,
+    });
+    return response.data;
+  },
+
+  getById: async (id: string) => {
+    const response = await api.get<{ document: DocumentStaff }>(
+      `/document_staff/${id}`
+    );
+    return response.data.document;
+  },
+
+  create: async (formData: FormData) => {
+    const response = await api.post<{
+      message: string;
+      document: DocumentStaff;
+    }>('/document_staff', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    return {
+      message: response.data.message,
+      document: response.data.document,
+    };
+  },
+  
+  update: async (
+    id: string,
+    data: {
+      sender: string;
+      subject: string;
+      letter_type: 'masuk' | 'keluar';
+    }
+  ) => {
+    const formData = new FormData();
+    formData.append('sender', data.sender);
+    formData.append('subject', data.subject);
+    formData.append('letter_type', data.letter_type);
+
+    const response = await api.put<{
+      message: string;
+      document: DocumentStaff;
+    }>(`/document_staff/${id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    return {
+      message: response.data.message,
+      document: response.data.document,
+    };
+  },
+
+  delete: async (id: string) => {
+    const response = await api.delete<{ message: string }>(
+      `/document_staff/${id}`
+    );
+    return response.data;
+  },
+
+  // ✅ TAMBAH: Download endpoint
+  download: async (id: string) => {
+    const downloadUrl = `${API_URL}/document_staff/${id}/download`;
+    window.open(downloadUrl, '_blank');
+  },
+
+  // ✅ TAMBAH: Get download URL
+  getDownloadUrl: (id: string) => {
+    return `${API_URL}/document_staff/${id}/download`;
+  },
 };
 
 //  ==== User API (Admin only) =====
@@ -263,18 +293,15 @@ export const userAPI = {
             console.log('Full Response:', response);
             console.log('Response Data:', response.data);
         
-            // Cek apakah ada data users
             const users = response.data?.users || response.data || [];
             
             console.log('Users Array:', users);
             
-            // Pastikan users adalah array
             if (!Array.isArray(users)) {
                 console.error('Users bukan array:', users);
                 return [];
             }
             
-            // Return users langsung tanpa modifikasi
             return users;
             
         } catch (error) {
@@ -283,13 +310,21 @@ export const userAPI = {
         }
     },
 
-    create: async (data: {
+   create: async (data: {
         name: string;
         username: string; 
         password: string;
         role: 'admin' | 'staff';
     }) => {
-        const response = await api.post<{ message: string; user: User }>('/users', data);
+        const endpoint = data.role === 'admin' ? '/users/admin' : '/users/staff';
+        const dataToSend = {
+            name: data.name,
+            username: data.username,
+            password: data.password,
+        };
+
+        // Panggil endpoint yang benar
+        const response = await api.post<{ message: string; user: User }>(endpoint, dataToSend);
         return response.data.user;
     },
 

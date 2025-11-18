@@ -57,8 +57,10 @@ export interface DocumentStaff {
   id: string;
   user_id: string;
   user?: User;
-  file_name: string;
+  sender: string;         
   subject: string;
+  letter_type: 'masuk' | 'keluar'; 
+  file_name: string;
   public_id: string;
   resource_type: string;
   created_at: string;
@@ -125,4 +127,12 @@ export interface ApiCreateDocumentResponse {
   file_id: string;
   file_name: string;
   document: Document;
+}
+
+export interface DocumentStaffApiResponse {
+  documents: DocumentStaff[]; 
+  total: number;
+  current_page: number;
+  last_page: number;
+  per_page: number;
 }

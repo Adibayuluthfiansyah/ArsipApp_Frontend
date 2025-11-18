@@ -33,12 +33,12 @@ import {
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 import Link from "next/link";
-import { useAuth } from "@/context/AuthContext"; // ← TAMBAHKAN INI
+import { useAuth } from "@/context/AuthContext";
 
 export default function DocumentDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const { isAdmin } = useAuth(); // ← TAMBAHKAN INI
+  const { isAdmin } = useAuth();
   const [documentData, setDocumentData] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -91,14 +91,20 @@ export default function DocumentDetailPage() {
     }
   };
 
+  // ✅ UPDATE: Menggunakan endpoint download baru
   const handleDownload = async () => {
-    if (!documentData?.file_name) {
-      toast.error("URL file tidak ditemukan");
+    if (!documentData?.id) {
+      toast.error("ID dokumen tidak ditemukan");
       return;
     }
 
-    window.open(documentData.file_name, "_blank");
-    toast.success("Membuka file di tab baru");
+    try {
+      await documentAPI.download(documentData.id);
+      toast.success("Membuka file...");
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Gagal membuka file");
+    }
   };
 
   const handleDelete = async () => {
@@ -170,10 +176,8 @@ export default function DocumentDetailPage() {
           </div>
         </div>
 
-        {/* ✅ TOMBOL ACTIONS - KONDISIONAL BERDASARKAN ROLE */}
         {!isEditing && (
           <div className="flex items-center gap-2">
-            {/* ❌ Edit - Hanya Admin */}
             {isAdmin && (
               <Button
                 variant="outline"
@@ -185,7 +189,7 @@ export default function DocumentDetailPage() {
               </Button>
             )}
 
-            {/* ✅ Download - Semua User */}
+            {/* ✅ TOMBOL DOWNLOAD - Menggunakan method baru */}
             <Button
               variant="outline"
               onClick={handleDownload}
@@ -195,7 +199,6 @@ export default function DocumentDetailPage() {
               Buka File
             </Button>
 
-            {/* ❌ Hapus - Hanya Admin */}
             {isAdmin && (
               <Button
                 variant="destructive"
@@ -334,25 +337,26 @@ export default function DocumentDetailPage() {
                         Nama File
                       </p>
                       <p className="text-base break-all">
-                        {documentData.file_name || "-"}
+                        {documentData.file_name?.split("/").pop() || "-"}
                       </p>
                     </div>
                   </div>
 
+                  {/* ✅ UPDATE: Link menggunakan getDownloadUrl */}
                   <div className="flex items-start gap-3">
                     <ExternalLink className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-muted-foreground">
                         Link File
                       </p>
-                      {documentData.file_name ? (
+                      {documentData.id ? (
                         <a
-                          href={documentData.file_name}
+                          href={documentAPI.getDownloadUrl(documentData.id)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm text-primary hover:underline break-all"
                         >
-                          Buka di Cloudinary/Google Drive
+                          Buka di Tab Baru
                         </a>
                       ) : (
                         <p className="text-sm text-muted-foreground">-</p>

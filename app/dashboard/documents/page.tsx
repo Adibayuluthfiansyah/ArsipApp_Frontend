@@ -16,13 +16,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -43,6 +36,7 @@ import {
   Clock,
   User,
   MoreVertical,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -51,22 +45,29 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/context/AuthContext"; // ← TAMBAHKAN INI
+import { useAuth } from "@/context/AuthContext";
 
 export default function DocumentsPage() {
-  const { isAdmin } = useAuth(); // ← TAMBAHKAN INI
+  const { isAdmin } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [letterTypeFilter, setLetterTypeFilter] = useState<string>("all");
-
-  // State baru untuk dialog konfirmasi hapus
+  const [searchTerm, setSearchTerm] = useState("");
   const [docToDelete, setDocToDelete] = useState<Document | null>(null);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      setSearch(searchTerm);
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
 
   useEffect(() => {
     fetchDocuments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [letterTypeFilter, search]);
+  }, [search, letterTypeFilter]);
 
   const fetchDocuments = async () => {
     setLoading(true);
@@ -91,19 +92,29 @@ export default function DocumentsPage() {
     }
   };
 
-  // Logika hapus dipisahkan agar bisa dipanggil dari dialog
   const executeDelete = async () => {
     if (!docToDelete) return;
 
     try {
       await documentAPI.delete(docToDelete.id.toString());
       toast.success("Dokumen berhasil dihapus");
-      fetchDocuments(); // Muat ulang data
+      fetchDocuments();
     } catch (error) {
       console.error("Error deleting document:", error);
       toast.error("Gagal menghapus dokumen");
     } finally {
-      setDocToDelete(null); // Tutup dialog
+      setDocToDelete(null);
+    }
+  };
+
+  // ✅ HANDLER DOWNLOAD BARU
+  const handleDownload = async (doc: Document) => {
+    try {
+      await documentAPI.download(doc.id);
+      toast.success("Membuka file...");
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Gagal membuka file");
     }
   };
 
@@ -138,7 +149,6 @@ export default function DocumentsPage() {
           </p>
         </div>
 
-        {/* ✅ TOMBOL UPLOAD - HANYA ADMIN */}
         {isAdmin && (
           <Link href="/dashboard/documents/upload">
             <Button>
@@ -149,7 +159,6 @@ export default function DocumentsPage() {
         )}
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
@@ -166,33 +175,16 @@ export default function DocumentsPage() {
                 <Input
                   id="search"
                   placeholder="Cari berdasarkan pengirim, subjek, nama file..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 border-black/30"
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="letter_type">Filter Tipe Surat</Label>
-              <Select
-                value={letterTypeFilter}
-                onValueChange={setLetterTypeFilter}
-              >
-                <SelectTrigger id="letter_type">
-                  <SelectValue placeholder="Semua Tipe" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Tipe</SelectItem>
-                  <SelectItem value="masuk">Surat Masuk</SelectItem>
-                  <SelectItem value="keluar">Surat Keluar</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Documents List */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
@@ -206,7 +198,7 @@ export default function DocumentsPage() {
             </div>
           ) : (
             <div>
-              {/* --- TAMPILAN DESKTOP (TABLE) --- */}
+              {/* TAMPILAN DESKTOP */}
               <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -228,7 +220,7 @@ export default function DocumentsPage() {
                         </TableCell>
                         <TableCell>{doc.subject || "-"}</TableCell>
                         <TableCell className="font-mono text-sm">
-                          {doc.file_name || "-"}
+                          {doc.file_name?.split("/").pop() || "-"}
                         </TableCell>
                         <TableCell>{renderTypeBadge(doc)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
@@ -239,12 +231,22 @@ export default function DocumentsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-2">
-                            {/* ✅ LIHAT - SEMUA USER */}
+                            {/* ✅ LIHAT DETAIL */}
                             <Link href={`/dashboard/documents/${doc.id}`}>
                               <Button variant="ghost" size="icon" title="Lihat">
                                 <Eye className="h-4 w-4" />
                               </Button>
                             </Link>
+
+                            {/* ✅ DOWNLOAD - SEMUA USER */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Download"
+                              onClick={() => handleDownload(doc)}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
 
                             {/* ❌ HAPUS - HANYA ADMIN */}
                             {isAdmin && (
@@ -265,7 +267,7 @@ export default function DocumentsPage() {
                 </Table>
               </div>
 
-              {/* --- TAMPILAN MOBILE (CARDS) --- */}
+              {/* TAMPILAN MOBILE */}
               <div className="block md:hidden border-t">
                 {documents.map((doc) => (
                   <div
@@ -293,7 +295,6 @@ export default function DocumentsPage() {
                       <div>{renderTypeBadge(doc)}</div>
                     </div>
 
-                    {/* Tombol Aksi Kanan */}
                     <div className="flex flex-col justify-start">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -302,13 +303,19 @@ export default function DocumentsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {/* ✅ LIHAT - SEMUA USER */}
+                          {/* ✅ LIHAT */}
                           <Link href={`/dashboard/documents/${doc.id}`}>
                             <DropdownMenuItem>
                               <Eye className="mr-2 h-4 w-4" />
                               Lihat
                             </DropdownMenuItem>
                           </Link>
+
+                          {/* ✅ DOWNLOAD - SEMUA USER */}
+                          <DropdownMenuItem onClick={() => handleDownload(doc)}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Download
+                          </DropdownMenuItem>
 
                           {/* ❌ HAPUS - HANYA ADMIN */}
                           {isAdmin && (
@@ -331,7 +338,7 @@ export default function DocumentsPage() {
         </CardContent>
       </Card>
 
-      {/* --- Dialog Konfirmasi Hapus --- */}
+      {/* Dialog Konfirmasi Hapus */}
       <AlertDialog
         open={!!docToDelete}
         onOpenChange={(open) => {

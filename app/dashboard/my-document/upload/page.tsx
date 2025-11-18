@@ -7,22 +7,34 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"; // Import Select
 import { ArrowLeft, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function UploadDocumentStaffPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+
+  // --- PERBAIKAN STATE ---
   const [formData, setFormData] = useState({
+    sender: "",
     subject: "",
+    letter_type: "masuk" as "masuk" | "keluar", // Tambahkan state baru
     file: null as File | null,
   });
+  // --- AKHIR PERBAIKAN ---
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validasi ukuran file (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
+        // Max 10MB
         toast.error("Ukuran file maksimal 10MB");
         e.target.value = "";
         return;
@@ -34,16 +46,26 @@ export default function UploadDocumentStaffPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.file || !formData.subject.trim()) {
+    // --- PERBAIKAN VALIDASI ---
+    if (
+      !formData.file ||
+      !formData.subject.trim() ||
+      !formData.sender.trim() // Tambahkan validasi
+    ) {
       toast.error("Semua field wajib diisi");
       return;
     }
+    // --- AKHIR PERBAIKAN ---
 
     try {
       setLoading(true);
       const data = new FormData();
+      // --- PERBAIKAN PENGIRIMAN DATA ---
       data.append("file", formData.file);
+      data.append("sender", formData.sender.trim()); // Tambahkan sender
       data.append("subject", formData.subject.trim());
+      data.append("letter_type", formData.letter_type); // Tambahkan letter_type
+      // --- AKHIR PERBAIKAN ---
 
       await documentStaffAPI.create(data);
       toast.success("Dokumen berhasil diupload");
@@ -69,9 +91,27 @@ export default function UploadDocumentStaffPage() {
       </Button>
 
       <Card className="p-6">
-        <h1 className="text-2xl font-bold mb-6">Upload Dokumen Baru</h1>
+        <h1 className="text-2xl font-bold mb-6">Upload Dokumen Baru (Staff)</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* --- FIELD BARU: SENDER --- */}
+          <div className="space-y-2">
+            <Label htmlFor="sender">
+              Pengirim <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="sender"
+              placeholder="Contoh: Instansi/Perusahaan Pengirim"
+              value={formData.sender}
+              onChange={(e) =>
+                setFormData({ ...formData, sender: e.target.value })
+              }
+              disabled={loading}
+              required
+            />
+          </div>
+          {/* --- AKHIR FIELD BARU --- */}
+
           {/* Subject */}
           <div className="space-y-2">
             <Label htmlFor="subject">
@@ -79,7 +119,7 @@ export default function UploadDocumentStaffPage() {
             </Label>
             <Input
               id="subject"
-              placeholder="Contoh: Laporan Bulanan November 2025"
+              placeholder="Contoh: Undangan Rapat Koordinasi"
               value={formData.subject}
               onChange={(e) =>
                 setFormData({ ...formData, subject: e.target.value })
@@ -87,10 +127,30 @@ export default function UploadDocumentStaffPage() {
               disabled={loading}
               required
             />
-            <p className="text-sm text-muted-foreground">
-              Berikan judul yang jelas dan deskriptif
-            </p>
           </div>
+
+          {/* --- FIELD BARU: LETTER TYPE --- */}
+          <div className="space-y-2">
+            <Label htmlFor="letter_type">
+              Jenis Surat <span className="text-destructive">*</span>
+            </Label>
+            <Select
+              value={formData.letter_type}
+              onValueChange={(value: "masuk" | "keluar") =>
+                setFormData({ ...formData, letter_type: value })
+              }
+              disabled={loading}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih jenis surat" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="masuk">Surat Masuk</SelectItem>
+                <SelectItem value="keluar">Surat Keluar</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {/* --- AKHIR FIELD BARU --- */}
 
           {/* File */}
           <div className="space-y-2">
@@ -101,13 +161,12 @@ export default function UploadDocumentStaffPage() {
               id="file"
               type="file"
               onChange={handleFileChange}
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp"
               disabled={loading}
               required
             />
             <p className="text-sm text-muted-foreground">
-              Format: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG (Maksimal
-              10MB)
+              Format yang didukung (Maks 10MB)
             </p>
             {formData.file && (
               <p className="text-sm text-primary">
