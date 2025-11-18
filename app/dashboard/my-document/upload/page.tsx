@@ -1,18 +1,17 @@
 "use client";
 
+import { AxiosError } from "axios";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { documentStaffAPI, getErrorMessage } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import { documentStaffAPI } from "@/lib/api"; // Menggunakan API Staff
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -20,210 +19,220 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Upload, Loader2, FileIcon } from "lucide-react";
-import { toast } from "sonner";
-import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Upload as UploadIcon } from "lucide-react";
+import Link from "next/link";
 
 export default function UploadDocumentStaffPage() {
-  const router = useRouter();
+  const [sender, setSender] = useState("");
+  const [subject, setSubject] = useState("");
+  const [letterType, setLetterType] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const [formData, setFormData] = useState({
-    sender: "",
-    subject: "",
-    letter_type: "masuk" as "masuk" | "keluar",
-    file: null as File | null,
-  });
+  const { user } = useAuth();
+  const router = useRouter();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("Ukuran file maksimal 10MB");
-        e.target.value = "";
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+
+      // Validasi ukuran 10MB
+      const maxSize = 10 * 1024 * 1024;
+      if (selectedFile.size > maxSize) {
+        toast.error("File terlalu besar", {
+          description: "Ukuran maksimal file adalah 10MB",
+        });
         return;
       }
-      setFormData({ ...formData, file });
+
+      setFile(selectedFile);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.file || !formData.subject.trim() || !formData.sender.trim()) {
-      toast.error("Semua field wajib diisi");
+    if (!sender || !subject || !letterType || !file) {
+      toast.error("Semua field wajib diisi!");
       return;
     }
 
-    try {
-      setLoading(true);
-      const data = new FormData();
-      data.append("file", formData.file);
-      data.append("sender", formData.sender.trim());
-      data.append("subject", formData.subject.trim());
-      data.append("letter_type", formData.letter_type);
+    if (!user?.ID && !user?.id) {
+      toast.error("User tidak terautentikasi", {
+        description: "Silakan login kembali",
+      });
+      router.push("/login");
+      return;
+    }
 
-      await documentStaffAPI.create(data);
-      toast.success("Dokumen berhasil diupload");
-      router.push("/dashboard/my-document");
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast.error(getErrorMessage(error));
+    setLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("sender", sender);
+      formData.append("subject", subject);
+      formData.append("letter_type", letterType);
+      formData.append("file", file);
+
+      // Menggunakan API Staff (create)
+      const response = await documentStaffAPI.create(formData);
+
+      toast.success("Dokumen berhasil diupload!", {
+        description: response.message || "File telah tersimpan di arsip anda",
+      });
+
+      // Redirect ke My Document
+      setTimeout(() => {
+        router.push("/dashboard/my-document");
+      }, 1500);
+    } catch (error: unknown) {
+      toast.error("Gagal mengupload dokumen");
+      console.error("Upload Error:", error);
+
+      let errorMessage = "Terjadi kesalahan";
+
+      if (error instanceof AxiosError) {
+        if (error.response?.data) {
+          const errResp: { error?: string; message?: string } =
+            error.response.data;
+          errorMessage =
+            errResp.error || errResp.message || "Gagal mengupload dokumen";
+        }
+      }
+
+      toast.error("Gagal mengupload dokumen", {
+        description: errorMessage,
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Spinner />
+        <p className="ml-3 text-muted-foreground">Memuat data user...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="container max-w-3xl py-8 px-4 md:px-6">
-      <div className="mb-6 flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.back()}
-          disabled={loading}
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Link href="/dashboard/my-document">
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        </Link>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Upload Dokumen</h1>
-          <p className="text-muted-foreground">
-            Tambahkan dokumen surat baru ke arsip pribadi
+          <p className="text-muted-foreground mt-2">
+            Upload dokumen baru ke Arsip Pribadi
           </p>
         </div>
       </div>
 
-      <Card>
+      {/* Card Form */}
+      <Card className="max-w-2xl">
         <CardHeader>
-          <CardTitle>Form Upload</CardTitle>
-          <CardDescription>
-            Isi detail dokumen dan pilih file yang akan diupload.
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <UploadIcon className="h-5 w-5" />
+            Form Upload Dokumen
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2">
-              {/* SENDER */}
-              <div className="space-y-2">
-                <Label htmlFor="sender">
-                  Pengirim <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="sender"
-                  placeholder="Contoh: Dinas Pendidikan / PT. Maju"
-                  value={formData.sender}
-                  onChange={(e) =>
-                    setFormData({ ...formData, sender: e.target.value })
-                  }
-                  disabled={loading}
-                  required
-                />
-              </div>
-
-              {/* LETTER TYPE */}
-              <div className="space-y-2">
-                <Label htmlFor="letter_type">
-                  Jenis Surat <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={formData.letter_type}
-                  onValueChange={(value: "masuk" | "keluar") =>
-                    setFormData({ ...formData, letter_type: value })
-                  }
-                  disabled={loading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih jenis surat" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="masuk">Surat Masuk</SelectItem>
-                    <SelectItem value="keluar">Surat Keluar</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* SUBJECT */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Sender */}
             <div className="space-y-2">
-              <Label htmlFor="subject">
-                Subjek / Perihal <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="subject"
-                rows={3}
-                placeholder="Contoh: Undangan Rapat Koordinasi Akhir Tahun"
-                value={formData.subject}
-                onChange={(e) =>
-                  setFormData({ ...formData, subject: e.target.value })
-                }
-                disabled={loading}
+              <Label htmlFor="sender">Pengirim</Label>
+              <Input
+                id="sender"
+                placeholder="Nama pengirim dokumen"
+                value={sender}
+                onChange={(e) => setSender(e.target.value)}
                 required
+                disabled={loading}
               />
             </div>
 
-            {/* FILE */}
+            {/* Subject */}
             <div className="space-y-2">
-              <Label htmlFor="file">
-                File Dokumen <span className="text-destructive">*</span>
-              </Label>
-              <div className="border-2 border-dashed rounded-lg p-6 hover:bg-muted/50 transition-colors text-center cursor-pointer relative">
-                <Input
-                  id="file"
-                  type="file"
-                  onChange={handleFileChange}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png"
-                  disabled={loading}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  required
-                />
-                <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                  <FileIcon className="h-10 w-10 text-muted-foreground/50" />
-                  {formData.file ? (
-                    <div className="text-center">
-                      <p className="text-sm font-medium text-foreground">
-                        {formData.file.name}
-                      </p>
-                      <p className="text-xs">
-                        {(formData.file.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <p className="text-sm font-medium">
-                        Klik untuk pilih file atau drag & drop
-                      </p>
-                      <p className="text-xs">
-                        PDF, Word, Excel, Gambar (Max 10MB)
-                      </p>
-                    </>
-                  )}
-                </div>
-              </div>
+              <Label htmlFor="subject">Subjek / Perihal</Label>
+              <Textarea
+                id="subject"
+                placeholder="Masukkan subjek atau perihal dokumen"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                required
+                rows={3}
+                disabled={loading}
+              />
             </div>
 
-            {/* ACTIONS */}
-            <div className="flex justify-end gap-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.back()}
+            {/* Letter Type */}
+            <div className="space-y-2">
+              <Label htmlFor="letter_type">Tipe Surat</Label>
+              <Select
+                value={letterType}
+                onValueChange={setLetterType}
+                required
                 disabled={loading}
               >
-                Batal
-              </Button>
-              <Button type="submit" disabled={loading}>
+                <SelectTrigger id="letter_type">
+                  <SelectValue placeholder="Pilih tipe surat..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="masuk">Surat Masuk</SelectItem>
+                  <SelectItem value="keluar">Surat Keluar</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* File Input */}
+            <div className="space-y-2">
+              <Label htmlFor="file">File Dokumen</Label>
+              <Input
+                id="file"
+                type="file"
+                onChange={handleFileChange}
+                required
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.xls,.xlsx,.ppt,.pptx"
+                disabled={loading}
+              />
+              {file && (
+                <p className="text-sm text-muted-foreground">
+                  File: {file.name} ({(file.size / 1024).toFixed(2)} KB)
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Format: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, JPG, PNG (Max
+                10MB)
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-4">
+              <Button type="submit" disabled={loading} className="flex-1">
                 {loading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Spinner className="mr-2" />
                     Mengupload...
                   </>
                 ) : (
                   <>
-                    <Upload className="mr-2 h-4 w-4" />
+                    <UploadIcon className="mr-2 h-4 w-4" />
                     Upload Dokumen
                   </>
                 )}
               </Button>
+
+              {/* Tombol Batal kembali ke my-document */}
+              <Link href="/dashboard/my-document">
+                <Button type="button" variant="outline" disabled={loading}>
+                  Batal
+                </Button>
+              </Link>
             </div>
           </form>
         </CardContent>

@@ -30,15 +30,14 @@ import { Badge } from "@/components/ui/badge";
 import {
   Upload,
   Eye,
-  Edit,
   Trash2,
   Search,
   Filter,
   FileText,
   Clock,
-  User,
   MoreVertical,
   Download,
+  Pencil, // Icon Edit
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -56,6 +55,7 @@ export default function MyDocumentPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [docToDelete, setDocToDelete] = useState<DocumentStaff | null>(null);
 
+  // Debounce Search
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       setSearch(searchTerm);
@@ -63,6 +63,7 @@ export default function MyDocumentPage() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchTerm]);
 
+  // Fetch Data
   useEffect(() => {
     fetchDocuments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -72,6 +73,7 @@ export default function MyDocumentPage() {
     setLoading(true);
     try {
       const params: { letter_type?: string; search?: string } = {};
+
       if (letterTypeFilter && letterTypeFilter !== "all") {
         params.letter_type = letterTypeFilter;
       }
@@ -90,11 +92,12 @@ export default function MyDocumentPage() {
     }
   };
 
+  // Handle Delete
   const executeDelete = async () => {
     if (!docToDelete) return;
 
     try {
-      await documentStaffAPI.delete(docToDelete.id.toString());
+      await documentStaffAPI.delete(docToDelete.id);
       toast.success("Dokumen berhasil dihapus");
       fetchDocuments();
     } catch (error) {
@@ -105,7 +108,7 @@ export default function MyDocumentPage() {
     }
   };
 
-  // ✅ HANDLER DOWNLOAD BARU
+  // Handle Download
   const handleDownload = async (doc: DocumentStaff) => {
     try {
       await documentStaffAPI.download(doc.id);
@@ -139,11 +142,12 @@ export default function MyDocumentPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header & Tombol Upload */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dokumen Staff</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Arsip Staff</h1>
           <p className="text-muted-foreground mt-2">
-            Kelola dokumen yang diupload oleh staff
+            Kelola dokumen surat staff
           </p>
         </div>
 
@@ -155,6 +159,7 @@ export default function MyDocumentPage() {
         </Link>
       </div>
 
+      {/* Card Filter */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
@@ -170,10 +175,10 @@ export default function MyDocumentPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="search"
-                  placeholder="Cari berdasarkan pengirim, subjek, nama file..."
+                  placeholder="Cari pengirim, subjek, atau nama file..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-black/30"
+                  className="pl-10"
                 />
               </div>
             </div>
@@ -181,6 +186,7 @@ export default function MyDocumentPage() {
         </CardContent>
       </Card>
 
+      {/* Tabel Dokumen */}
       <Card>
         <CardContent className="p-0">
           {loading ? (
@@ -190,7 +196,7 @@ export default function MyDocumentPage() {
           ) : documents.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>Tidak ada dokumen ditemukan</p>
+              <p>Belum ada dokumen yang diupload</p>
             </div>
           ) : (
             <div>
@@ -202,8 +208,7 @@ export default function MyDocumentPage() {
                       <TableHead>Pengirim</TableHead>
                       <TableHead>Subjek</TableHead>
                       <TableHead>Nama File</TableHead>
-                      <TableHead>Tipe Surat</TableHead>
-                      <TableHead>Diupload Oleh</TableHead>
+                      <TableHead>Tipe</TableHead>
                       <TableHead>Tanggal</TableHead>
                       <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
@@ -214,39 +219,52 @@ export default function MyDocumentPage() {
                         <TableCell className="font-medium">
                           {doc.sender || "-"}
                         </TableCell>
-                        <TableCell>{doc.subject || "-"}</TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {doc.file_name.split("/").pop() || "-"}
+                        <TableCell
+                          className="max-w-[200px] truncate"
+                          title={doc.subject}
+                        >
+                          {doc.subject || "-"}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm max-w-[150px] truncate">
+                          {doc.file_name?.split("/").pop() || "-"}
                         </TableCell>
                         <TableCell>{renderTypeBadge(doc)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {doc.user?.name || "-"}
-                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {formatDate(doc.created_at)}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-2">
-                            {/* ✅ DOWNLOAD - Menggunakan method baru */}
+                            {/* TOMBOL MATA (Preview / Detail) */}
+                            <Link href={`/dashboard/my-document/${doc.id}`}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Lihat Detail"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </Link>
+
+                            {/* TOMBOL EDIT */}
+                            <Link
+                              href={`/dashboard/my-document/${doc.id}/edit`}
+                            >
+                              <Button variant="ghost" size="icon" title="Edit">
+                                <Pencil className="h-4 w-4 text-blue-600" />
+                              </Button>
+                            </Link>
+
+                            {/* TOMBOL DOWNLOAD */}
                             <Button
                               variant="ghost"
                               size="icon"
                               title="Download"
                               onClick={() => handleDownload(doc)}
                             >
-                              <Download className="h-4 w-4" />
+                              <Download className="h-4 w-4 text-green-600" />
                             </Button>
 
-                            {/* ✅ EDIT */}
-                            <Link
-                              href={`/dashboard/my-document/${doc.id}/edit`}
-                            >
-                              <Button variant="ghost" size="icon" title="Edit">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </Link>
-
-                            {/* ✅ HAPUS */}
+                            {/* TOMBOL HAPUS */}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -271,17 +289,15 @@ export default function MyDocumentPage() {
                     className="border-b p-4 grid grid-cols-[1fr_auto] gap-4"
                   >
                     <div className="space-y-2">
-                      <span className="font-medium">{doc.subject}</span>
+                      <span className="font-medium line-clamp-2">
+                        {doc.subject}
+                      </span>
                       <div className="text-sm text-muted-foreground space-y-1">
                         <p>
                           <span className="font-medium text-foreground">
                             Pengirim:
                           </span>{" "}
                           {doc.sender}
-                        </p>
-                        <p className="flex items-center gap-2">
-                          <User className="h-3 w-3" />
-                          {doc.user?.name || "-"}
                         </p>
                         <p className="flex items-center gap-2">
                           <Clock className="h-3 w-3" />
@@ -299,21 +315,29 @@ export default function MyDocumentPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {/* ✅ DOWNLOAD */}
+                          {/* Detail */}
+                          <Link href={`/dashboard/my-document/${doc.id}`}>
+                            <DropdownMenuItem>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Lihat Detail
+                            </DropdownMenuItem>
+                          </Link>
+
+                          {/* Edit */}
+                          <Link href={`/dashboard/my-document/${doc.id}/edit`}>
+                            <DropdownMenuItem>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                          </Link>
+
+                          {/* Download */}
                           <DropdownMenuItem onClick={() => handleDownload(doc)}>
                             <Download className="mr-2 h-4 w-4" />
                             Download
                           </DropdownMenuItem>
 
-                          {/* ✅ EDIT */}
-                          <Link href={`/dashboard/my-document/${doc.id}/edit`}>
-                            <DropdownMenuItem>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                          </Link>
-
-                          {/* ✅ HAPUS */}
+                          {/* Hapus */}
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => setDocToDelete(doc)}
@@ -336,26 +360,21 @@ export default function MyDocumentPage() {
       <AlertDialog
         open={!!docToDelete}
         onOpenChange={(open) => {
-          if (!open) {
-            setDocToDelete(null);
-          }
+          if (!open) setDocToDelete(null);
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Anda yakin ingin menghapus?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tindakan ini tidak dapat dibatalkan. Dokumen
-              <span className="font-bold mx-1">
-                &quot;{docToDelete?.subject}&quot;
-              </span>
-              akan dihapus secara permanen.
+              Dokumen <span className="font-bold">{docToDelete?.subject}</span>{" "}
+              akan dihapus secara permanen dari arsip Anda.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              className="bg-destructive hover:bg-destructive/90"
               onClick={executeDelete}
             >
               Ya, Hapus
