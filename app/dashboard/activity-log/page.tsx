@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity } from "lucide-react";
 import { ActivityLogTable } from "@/components/activity/ActivityLogTable";
+import { ActivityLogMobileList } from "@/components/activity/ActivityLogMobileList";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function ActivityLogPage() {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
@@ -30,19 +32,37 @@ export default function ActivityLogPage() {
   }, []);
 
   return (
-    <div className="container mx-auto py-8 px-4 md:px-6">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight">Log Aktivitas</h1>
+        <p className="text-muted-foreground">
+          Memantau semua tindakan yang terjadi dalam sistem
+        </p>
+      </div>
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="border-b mb-4">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <Activity className="h-5 w-5" />
-            Log Aktivitas
+            Riwayat Aktivitas
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 md:p-6">
           {isLoading ? (
-            <p className="text-center">Memuat data...</p>
+            <div className="flex items-center justify-center py-12">
+              <Spinner className="h-8 w-8" />
+            </div>
           ) : (
-            <ActivityLogTable logs={logs} />
+            <>
+              {/* Tampilan Desktop: Tabel */}
+              <div className="hidden md:block">
+                <ActivityLogTable logs={logs} />
+              </div>
+
+              {/* Tampilan Mobile: Card List */}
+              <div className="block md:hidden px-4 pb-4">
+                <ActivityLogMobileList logs={logs} />
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

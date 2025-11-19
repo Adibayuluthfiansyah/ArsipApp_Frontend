@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { authAPI } from "@/lib/api";
 import { User } from "@/types";
 import Cookies from "js-cookie";
+import { toast } from "sonner";
 
 type RegisterData = {
   name: string;
@@ -92,6 +93,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error("AuthContext: Logout API failed:", error);
     } finally {
+      toast.error("Anda Telah Logout", {
+        description: "Anda telah berhasil keluar dari akun Anda.",
+      });
       Cookies.remove("access_token");
       setUser(null);
       router.push("/login");

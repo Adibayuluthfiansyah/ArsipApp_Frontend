@@ -33,7 +33,7 @@ export function DocumentFilter({
                 placeholder="Cari pengirim, subjek, atau nama file..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 border-secondary/40"
               />
             </div>
           </div>

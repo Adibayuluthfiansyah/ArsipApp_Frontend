@@ -132,7 +132,7 @@ export default function DocumentsPage() {
 
   const renderTypeBadge = (doc: Document) => (
     <Badge
-      variant={doc.letter_type === "masuk" ? "default" : "secondary"}
+      variant={doc.letter_type === "masuk" ? "default" : "destructive"}
       className="capitalize"
     >
       {doc.letter_type === "masuk" ? "Surat Masuk" : "Surat Keluar"}

@@ -29,7 +29,9 @@ export default function LoginPage() {
 
     try {
       await login(username, password);
-      toast.success("Login Berhasil");
+      toast.success("Anda Telah Berhasil Login", {
+        description: "Selamat datang kembali!",
+      });
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Username atau Password salah.";

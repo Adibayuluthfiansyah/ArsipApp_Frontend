@@ -73,6 +73,7 @@ export function DocumentUploadForm({
           value={sender}
           onChange={(e) => setSender(e.target.value)}
           required
+          className="border-secondary/40"
           disabled={loading}
         />
       </div>
@@ -81,6 +82,7 @@ export function DocumentUploadForm({
         <Label htmlFor="subject">Subjek / Perihal</Label>
         <Textarea
           id="subject"
+          className="border-secondary/40"
           placeholder="Masukkan subjek atau perihal dokumen"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
@@ -117,6 +119,7 @@ export function DocumentUploadForm({
           required
           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.xls,.xlsx,.ppt,.pptx"
           disabled={loading}
+          className="border-secondary/40 text-gray-500"
         />
         {file && (
           <p className="text-sm text-muted-foreground">
